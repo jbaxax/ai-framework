@@ -1,4 +1,4 @@
-# my-ai-framework
+# ai-framework
 
 A reusable baseline for building with Claude Code: the stack, the architecture,
 and the conventions written down once, so they never have to be re-explained in
@@ -12,7 +12,7 @@ project — and it already knows how you work.
 Done once per project, not per session. `FW` is wherever you cloned this repo.
 
 ```bash
-export FW=~/path/to/my-ai-framework
+export FW=~/path/to/ai-framework
 ```
 
 ### Every project
