@@ -100,6 +100,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `docs/conventions.md` | Naming and code rules for both stacks |
 | `docs/stack-defaults.md` | The stack, and why each default was chosen |
 | `skills/requirements/` | Turning a chat message or user story into testable criteria |
+| `skills/mentor/` | When teaching happens during the work, and what it must contain |
 | `skills/auth/` | Sessions, cookies, token storage, what never to do |
 | `skills/api-client/` | HTTP clients, interceptors, pagination, verifying backend docs |
 | `skills/testing/` | Vitest, what to test first, what not to test |
