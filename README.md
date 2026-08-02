@@ -9,11 +9,19 @@ project — and it already knows how you work.
 
 ## Install
 
-Done once per project, not per session. `FW` is wherever you cloned this repo.
+### Once per machine — clone the framework
 
 ```bash
-export FW=~/path/to/ai-framework
+git clone git@github.com:jbaxax/ai-framework.git ~/ai-framework
+export FW=~/ai-framework
 ```
+
+Add the `export` to `~/.zshrc` so it survives new shells. This repo is never a
+dependency of your projects — files are copied out of it, so a project keeps
+working after the framework changes. To pick up updates, `git pull` here and copy
+again.
+
+The rest is done **once per project**, not per session.
 
 ### Every project
 
