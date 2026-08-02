@@ -1,0 +1,24 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <label for="customerId">Customer</label>
+  <input id="customerId" formControlName="customerId" />
+  @if (form.controls.customerId.touched && form.controls.customerId.invalid) {
+    <p role="alert">Select a customer</p>
+  }
+
+  <label for="series">Series</label>
+  <input id="series" formControlName="series" />
+  @if (form.controls.series.touched && form.controls.series.invalid) {
+    <p role="alert">Series is required</p>
+  }
+
+  <dl>
+    <dt>Taxable base</dt>
+    <dd>{{ totals().taxableBase | currency: 'PEN' }}</dd>
+    <dt>Tax</dt>
+    <dd>{{ totals().tax | currency: 'PEN' }}</dd>
+    <dt>Total</dt>
+    <dd>{{ totals().total | currency: 'PEN' }}</dd>
+  </dl>
+
+  <button type="submit">Create invoice</button>
+</form>

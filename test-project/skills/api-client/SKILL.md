@@ -24,16 +24,6 @@ request/response error handling, or any integration against a backend API.
 - Base URL comes from an environment variable. Never hardcode a host or IP.
 - Normalize every failure into a domain error type before leaving `infrastructure/`.
 - No automatic retries on `POST`, `PATCH`, or `DELETE` — they are not idempotent.
-- **Normalize input before validating its format.** Validating first rejects
-  values a domain rule would have fixed, so the rule never runs.
-
-```ts
-// WRONG — "  Walter@Example.com " is rejected before normalizeEmail can trim it
-email: z.email()
-
-// RIGHT — clean, then validate
-email: z.string().transform(normalizeEmail).pipe(z.email())
-```
 
 ## Decision Gates
 
@@ -41,8 +31,7 @@ email: z.string().transform(normalizeEmail).pipe(z.email())
 |---|---|
 | Supabase project | Supabase SDK — do not wrap it in Axios |
 | Server Component / Route Handler | Native `fetch` |
-| Browser → your own `/api` routes | Native `fetch` — same origin needs no dependency |
-| Browser → external REST API | Axios instance from `lib/api/` |
+| Client-side REST API | Axios instance from `lib/api/` |
 | Angular | `HttpClient` + functional interceptors |
 | External API needing a secret | Route handler proxies it; never call from the browser |
 

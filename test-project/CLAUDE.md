@@ -32,11 +32,6 @@ Ask **one** question at a time and wait for the answer. A default listed in this
 file is an answer — use it without asking. Silence on something *not* covered
 here is not permission.
 
-A decision gate in `skills/` counts as an answer too: if the situation matches a
-row in one of those tables, follow it and say which row applied. Only ask when no
-row fits, or when asking is impossible — then state the assumption explicitly in
-the final report instead of burying it.
-
 ### 1.2 The dependency rule
 
 Layers depend **inward only**. An inner layer must never import from an outer one.
@@ -224,7 +219,7 @@ layer-first layout through the back door.
 
 | Path | Contents | Rule |
 |---|---|---|
-| `app/` | Routing only — `page.tsx`, `layout.tsx`, route handlers | Pages compose feature components. Route handlers orchestrate by calling `domain` and `infrastructure` — they hold no rules of their own. |
+| `app/` | Routing only — `page.tsx`, `layout.tsx`, route handlers | Pages compose feature components. No business logic. |
 | `components/ui/` | Design-system primitives (button, input, dialog) | No business logic, no data fetching. |
 | `components/shared/` | Cross-feature composite UI | Used by 2+ features. Used by one? It belongs to that feature. |
 | `lib/` | Framework-agnostic utilities and client setup | Pure and testable. |
@@ -246,7 +241,6 @@ layer-first layout through the back door.
 | Hooks | camelCase, `use` prefix | `useMealEntries.ts` |
 | Services | camelCase + `.service.ts` or `<name>Service.ts` — pick one per project | `dietService.ts` |
 | Types & schemas | camelCase file, PascalCase type | `types.ts` → `MealEntry` |
-| Server-only modules | `.server.ts` suffix | `session.server.ts` |
 | Tests | sibling of subject, `.test.ts` | `calories.test.ts` |
 | Constants | `SCREAMING_SNAKE_CASE` | `MAX_DAILY_CALORIES` |
 

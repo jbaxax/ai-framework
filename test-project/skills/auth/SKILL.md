@@ -46,8 +46,7 @@ when horizontal scale demands it, and say so explicitly.
    - `application/` — `useLogin`, `useLogout`, `useSession` hooks
    - `infrastructure/` — provider/API calls, cookie handling
    - `presentation/` — forms and Zod schemas
-3. Validate credentials with Zod at the boundary — **after** normalizing them.
-   Trim and lowercase the email first, or a trailing space becomes a failed login.
+3. Validate credentials with Zod at the boundary, before any network call.
 4. Enforce route protection **on the server** (middleware, layout, or route
    handler). Client-side redirects are UX, never a security boundary.
 5. On logout, clear the server session and invalidate the React Query cache.

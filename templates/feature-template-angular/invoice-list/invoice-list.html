@@ -1,0 +1,28 @@
+@if (loading()) {
+  <p>Loading invoices…</p>
+} @else if (error(); as message) {
+  <p role="alert">{{ message }}</p>
+} @else if (invoices().length === 0) {
+  <p>No invoices yet.</p>
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Number</th>
+        <th scope="col">Status</th>
+        <th scope="col">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (invoice of invoices(); track invoice.id) {
+        <tr>
+          <td>{{ invoice.series }}-{{ invoice.number }}</td>
+          <td>{{ invoice.status }}</td>
+          <td>{{ totalFor(invoice) | currency: 'PEN' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <p>Grand total: {{ grandTotal() | currency: 'PEN' }}</p>
+}
