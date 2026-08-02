@@ -1,11 +1,3 @@
-/**
- * The shared HTTP client. One configured instance, never `axios.get(...)` ad hoc.
- *
- * `withCredentials` sends the session cookie. No `Authorization` header is ever
- * assembled here, because no token is ever readable by this code — that is the
- * point of an `HttpOnly` cookie.
- */
-
 import axios from 'axios';
 
 export const apiClient = axios.create({
@@ -14,7 +6,6 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-/** Errors crossing into the domain, so no layer above sees an `AxiosError`. */
 export type ApiErrorKind =
   | 'unauthorized'
   | 'forbidden'
@@ -57,7 +48,6 @@ apiClient.interceptors.response.use(
 
     const kind = KIND_BY_STATUS[status] ?? 'server';
 
-    // Never log or forward headers, tokens, or the raw request body.
     return Promise.reject(new ApiError(kind, 'The request failed.'));
   },
 );

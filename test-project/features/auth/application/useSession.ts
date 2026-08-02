@@ -5,10 +5,6 @@ export const authKeys = {
   session: ['auth', 'session'] as const,
 };
 
-/**
- * The session is server state, so React Query owns it. Copying the user into a
- * Context would create a second source of truth that goes stale on logout.
- */
 export function useSession() {
   return useQuery({
     queryKey: authKeys.session,

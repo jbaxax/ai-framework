@@ -1,11 +1,3 @@
-/**
- * Route protection, enforced on the server.
- *
- * A client-side redirect is UX, never a security boundary — an attacker does
- * not run your JavaScript. The protected page checks again on the server; this
- * only saves the round trip.
- */
-
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 

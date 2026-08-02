@@ -6,7 +6,6 @@ import { ApiError } from '@/lib/api/client';
 import { useLogin } from '../../application/useLogin';
 import { loginSchema, toCredentials, type LoginForm as LoginFormValues } from '../schemas/loginSchema';
 
-/** One message for every rejection. Naming the cause enumerates accounts. */
 const GENERIC_ERROR = 'Invalid email or password.';
 const RATE_LIMITED = 'Too many attempts. Try again later.';
 
@@ -26,7 +25,6 @@ export function LoginForm() {
     try {
       await login.mutateAsync(toCredentials(values));
     } catch {
-      // Handled through `login.error` below; nothing is logged.
     }
   });
 

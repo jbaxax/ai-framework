@@ -1,13 +1,3 @@
-/**
- * Reference for what a good test looks like.
- *
- * Tests are written on request only — see `skills/testing/SKILL.md`. This file
- * exists to show the shape, not to imply every feature ships with tests.
- *
- * Note what is NOT here: no mocks, no test renderer, no async. Pure logic is
- * cheap to verify, which is the whole point of keeping `domain` clean.
- */
-
 import { describe, expect, it } from 'vitest';
 import { calculateTotals, canVoid, IGV_RATE, lineSubtotal } from './invoiceTotals';
 import type { Invoice, InvoiceLine } from './types';
@@ -24,7 +14,6 @@ function line(overrides: Partial<InvoiceLine> = {}): InvoiceLine {
 }
 
 describe('calculateTotals', () => {
-  // Edge cases first — the happy path rarely holds the bug.
   it('returns all zeros when there are no lines', () => {
     expect(calculateTotals([])).toEqual({
       subtotal: 0,
@@ -45,13 +34,9 @@ describe('calculateTotals', () => {
     expect(totals.total).toBe(212.4);
   });
 
-  it('keeps line amounts adding up to the total', () => {
-    const totals = calculateTotals([
-      line({ unitPrice: 0.1 }),
-      line({ unitPrice: 0.2 }),
-    ]);
+  it('sums 0.1 and 0.2 to exactly 0.3, not 0.30000000000000004', () => {
+    const totals = calculateTotals([line({ unitPrice: 0.1 }), line({ unitPrice: 0.2 })]);
 
-    // Naive float accumulation yields 0.30000000000000004 here.
     expect(totals.subtotal).toBe(0.3);
   });
 

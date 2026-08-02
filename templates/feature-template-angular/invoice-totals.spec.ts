@@ -1,16 +1,3 @@
-/**
- * Angular v22 runs Vitest, so this file is nearly identical to the React one.
- *
- * Note what is absent: no `TestBed`, no `compileComponents`, no fixture.
- * Testing pure logic needs none of it — which is why it stays cheap.
- *
- * Contrast with the CLI-generated `should create` spec, which asserts that
- * Angular can instantiate a class. That test cannot fail and protects nothing.
- * Delete those; keep this kind.
- *
- * Tests are written on request only — see `skills/testing/SKILL.md`.
- */
-
 import { describe, expect, it } from 'vitest';
 import { calculateTotals, canVoid, IGV_RATE, lineSubtotal } from './invoice-totals';
 import type { Invoice, InvoiceLine } from './invoice.model';
@@ -45,7 +32,7 @@ describe('calculateTotals', () => {
     expect(totals.total).toBe(212.4);
   });
 
-  it('keeps line amounts adding up to the total', () => {
+  it('sums 0.1 and 0.2 to exactly 0.3, not 0.30000000000000004', () => {
     const totals = calculateTotals([line({ unitPrice: 0.1 }), line({ unitPrice: 0.2 })]);
 
     expect(totals.subtotal).toBe(0.3);

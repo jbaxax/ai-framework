@@ -9,7 +9,6 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => {
-      // Clear every cached query: another user must not inherit this one's data.
       queryClient.clear();
       router.replace('/login');
     },

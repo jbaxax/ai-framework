@@ -1,17 +1,9 @@
-/**
- * The boundary. An untrusted payload becomes a domain object here.
- *
- * Identical in purpose to the React template's `infrastructure/invoiceSchemas.ts`.
- * Backend field names stop at this file.
- */
-
 import { z } from 'zod';
 import type { Invoice, InvoiceLine, InvoiceStatus } from './invoice.model';
 
 const invoiceLineDtoSchema = z.object({
   producto_id: z.string(),
   descripcion: z.string(),
-  // The API sends numbers as strings. Coerce here, never in a component.
   cantidad: z.coerce.number().nonnegative(),
   precio_unitario: z.coerce.number().nonnegative(),
   tasa_descuento: z.coerce.number().min(0).max(1).default(0),
@@ -61,7 +53,6 @@ export function toDomainInvoice(dto: InvoiceDto): Invoice {
   };
 }
 
-/** Domain vocabulary in, API vocabulary out. */
 export function toApiPayload(input: {
   customerId: string;
   series: string;

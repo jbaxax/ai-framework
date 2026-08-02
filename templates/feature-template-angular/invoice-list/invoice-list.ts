@@ -1,14 +1,3 @@
-/**
- * Presentation. Generated with:
- *   ng g component features/invoice/invoice-list
- *
- * The CLI creates the folder — a component is three files (.ts/.html/.scss),
- * so it gets its own directory. Services stay flat beside them.
- *
- * This component talks to the store and the domain. It never injects
- * InvoiceApi, never sees HttpClient, and never computes a total by hand.
- */
-
 import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { InvoiceStore } from '../invoice-store';
@@ -34,7 +23,6 @@ export class InvoiceList implements OnInit {
     this.store.load();
   }
 
-  /** Delegates to the domain. If the tax rate changes, this file does not. */
   protected totalFor(invoice: Invoice): number {
     return calculateTotals(invoice.lines).total;
   }

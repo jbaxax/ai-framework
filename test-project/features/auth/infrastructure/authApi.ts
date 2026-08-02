@@ -1,9 +1,3 @@
-/**
- * The only file in this feature that touches the HTTP client.
- *
- * Returns domain types. Throws `ApiError`, never `AxiosError`.
- */
-
 import { apiClient } from '@/lib/api/client';
 import type { Credentials, User } from '../domain/types';
 import { sessionResponseSchema, toDomainUser } from './authSchemas';
@@ -26,7 +20,6 @@ export async function fetchCurrentUser(): Promise<User | null> {
     const { data } = await apiClient.get('/auth/me');
     return toDomainUser(sessionResponseSchema.parse(data).user);
   } catch {
-    // No session is a normal state, not an error the UI must handle.
     return null;
   }
 }

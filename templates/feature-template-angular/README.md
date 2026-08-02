@@ -59,6 +59,35 @@ the codebase is legacy to migrate.
 - **No `should create` specs.** A test that asserts Angular can instantiate a
   class cannot fail. Delete them; keep tests like `invoice-totals.spec.ts`.
 
+## Decisions the code cannot state
+
+The framework forbids comments, so the reasoning a comment used to carry lives
+here. Everything in `../feature-template/README.md` under the same heading
+applies identically — the pagination and rounding files are the same logic.
+Angular-specific additions:
+
+**`invoice-totals.ts` has no `ng generate` schematic**, and that is not an
+oversight. Angular has no schematic for it because Angular has nothing to do with
+it. Its body is identical to the React template's `domain/invoiceTotals.ts`. That
+is the demonstration: pure logic does not belong to a framework.
+
+**Writable signals are private; only `.asReadonly()` views are exposed.** A
+component that can call `.set()` on the store's state moves the rule out of the
+store, which is exactly what the layer exists to prevent.
+
+**`grandTotal` is `computed()`, never a stored field.** A stored copy goes stale
+the moment `_invoices` changes, and nothing in the type system says so.
+
+**The store's error signal holds a message for a human**, never the raw
+`HttpErrorResponse`. The raw error can carry payload fragments and headers.
+
+**Components get a folder, services stay flat.** Not a framework choice — the CLI
+creates three files (`.ts`/`.html`/`.scss`) for a component and one for a
+service.
+
+**`ng new` does not give you `strict`, `src/environments/`, or `OnPush`.** See
+`docs/angular.md`. All three must be added by hand on a fresh project.
+
 ## Scaling
 
 Flat until the feature gets large (roughly 15 files). Then group into folders as

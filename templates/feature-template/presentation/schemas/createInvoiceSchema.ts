@@ -1,15 +1,3 @@
-/**
- * Form validation. Lives in `presentation/` because it describes what the FORM
- * accepts, which is a UI concern.
- *
- * The direction matters: this schema is built to satisfy the domain type.
- * The domain never imports this file.
- *
- * Getting this backwards — `application/` importing a schema type from
- * `presentation/` — is a dependency-rule violation. It is the exact leak this
- * template exists to prevent.
- */
-
 import { z } from 'zod';
 import type { NewInvoice } from '../../domain/types';
 
@@ -29,16 +17,6 @@ export const createInvoiceSchema = z.object({
 
 export type CreateInvoiceForm = z.infer<typeof createInvoiceSchema>;
 
-/**
- * Converts form values into the domain input.
- *
- * This function is the seam between the two shapes. If the domain gains a
- * required field, this stops compiling — the form is forced to catch up instead
- * of drifting silently.
- *
- * It also gives conversions an obvious home: form inputs arrive as strings,
- * dates arrive as text, and the domain wants neither.
- */
 export function toNewInvoice(form: CreateInvoiceForm): NewInvoice {
   return {
     customerId: form.customerId,

@@ -49,7 +49,31 @@ grounds — the same way `core/` does when its rule is "things used everywhere".
 | No barrel `index.ts` per feature | Hides which layer you are importing from, and breaks tree-shaking |
 | Explicit return types on exported functions | The signature is the contract; inference lets it drift silently |
 | No `any` — use `unknown` and narrow | `any` disables the checks you are paying for |
-| Comments explain **why**, never **what** | The code already says what |
+| **No comments** | See below |
+
+## No comments
+
+Do not write comments. Not file headers, not `//` notes above a line, not JSDoc
+blocks. When code seems to need explaining, the fix is to rename a variable,
+extract a function, or make a type more specific — until the code says it itself.
+
+Exceptions, and only these: directives a tool actually reads (`@ts-expect-error`,
+`eslint-disable-next-line`, `'use client'`), and license headers.
+
+Two habits replace what comments used to do:
+
+| Instead of | Do this |
+|---|---|
+| `// rounds to cents so lines match the total` | Name it `roundToCents` |
+| `// naive float sum gives 0.30000000000000004` | Put it in the test name: `it('sums 0.1 and 0.2 to exactly 0.3, not 0.30000000000000004')` |
+| A block explaining why a layer exists | Write it once in the feature's `README.md` |
+| `// reported to the backend, doc says paginated` | Commit message, or the README |
+
+A reason the code genuinely cannot carry — a business decision, a backend
+mismatch, a deliberate trade-off — is still worth recording. It goes in the
+feature `README.md` or the commit message, where it survives a refactor. A
+comment above a line does not: the line moves, the comment stays, and now it
+lies.
 
 ## Angular specifics
 

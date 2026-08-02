@@ -1,10 +1,3 @@
-/**
- * Cookie handling. Server-only.
- *
- * The token lives in an `HttpOnly` cookie: unreadable by JavaScript, so an XSS
- * cannot exfiltrate the session. It is never placed in `localStorage`.
- */
-
 import { cookies } from 'next/headers';
 import type { Session } from '../domain/types';
 import { isSessionExpired } from '../domain/session';
@@ -29,14 +22,12 @@ export async function clearSessionCookie(): Promise<void> {
   const token = store.get(COOKIE_NAME)?.value;
 
   if (token) {
-    // Revoke server-side too. Deleting only the cookie leaves the session valid.
     revokeSession(token);
   }
 
   store.delete(COOKIE_NAME);
 }
 
-/** Returns the live session, or null when missing, unknown, or expired. */
 export async function readSession(now: number = Date.now()): Promise<Session | null> {
   const store = await cookies();
   const token = store.get(COOKIE_NAME)?.value;

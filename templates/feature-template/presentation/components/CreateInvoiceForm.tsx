@@ -27,12 +27,9 @@ export function CreateInvoiceForm() {
     },
   });
 
-  // Totals are previewed with the same function the server-side rule uses.
-  // Duplicating the arithmetic here is how the preview and the invoice diverge.
   const totals = calculateTotals(watch('lines') ?? []);
 
   const onSubmit = handleSubmit(async (values) => {
-    // Form shape in, domain shape out. The mapping is explicit and type-checked.
     await createInvoice.mutateAsync(toNewInvoice(values));
   });
 

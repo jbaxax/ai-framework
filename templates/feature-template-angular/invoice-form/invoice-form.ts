@@ -1,12 +1,3 @@
-/**
- * Presentation. Generated with:
- *   ng g component features/invoice/invoice-form
- *
- * Validation lives here because it describes what the FORM accepts.
- * The domain type is the target the form must satisfy — the dependency points
- * inward, never outward.
- */
-
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -32,8 +23,6 @@ export class InvoiceForm {
 
   protected readonly lines = signal<readonly InvoiceLine[]>([]);
 
-  // Preview uses the same function the invoice will use. Duplicating the
-  // arithmetic in the template is how preview and invoice drift apart.
   protected readonly totals = computed(() => calculateTotals(this.lines()));
 
   protected submit(): void {

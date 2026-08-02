@@ -1,10 +1,3 @@
-/**
- * Presentation imports `application` and `domain`. Never `infrastructure`.
- *
- * This component does not know the API exists, does not know a token exists,
- * and does not compute totals itself — it asks the domain.
- */
-
 'use client';
 
 import { useInvoices } from '../../application/useInvoices';
@@ -28,7 +21,6 @@ export function InvoiceList() {
       </thead>
       <tbody>
         {page.items.map((invoice) => {
-          // The rule lives in the domain. If the tax changes, this file does not.
           const { total } = calculateTotals(invoice.lines);
 
           return (

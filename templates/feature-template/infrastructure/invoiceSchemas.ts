@@ -1,21 +1,9 @@
-/**
- * The boundary. This is where an untrusted payload becomes a domain object.
- *
- * Two rules live here:
- *  1. Every response is parsed before use. A parse failure is a loud, precise
- *     error at the boundary instead of an `undefined` surfacing in the UI.
- *  2. Backend field names never travel past this file. `domain/` does not know
- *     the API speaks snake_case in Spanish.
- */
-
 import { z } from 'zod';
 import type { Invoice, InvoiceLine, InvoiceStatus } from '../domain/types';
 
-/** Schemas describe the payload as the API ACTUALLY returns it, verified by a real call. */
 const invoiceLineDtoSchema = z.object({
   producto_id: z.string(),
   descripcion: z.string(),
-  // The API sends numbers as strings. Coerce here, never in a component.
   cantidad: z.coerce.number().nonnegative(),
   precio_unitario: z.coerce.number().nonnegative(),
   tasa_descuento: z.coerce.number().min(0).max(1).default(0),
@@ -53,7 +41,6 @@ function toDomainLine(dto: InvoiceLineDto): InvoiceLine {
   };
 }
 
-/** The mapping is the whole point: the API's vocabulary stops here. */
 export function toDomainInvoice(dto: InvoiceDto): Invoice {
   return {
     id: dto.id,

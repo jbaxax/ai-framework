@@ -1,13 +1,3 @@
-/**
- * Application layer. Holds state, orchestrates, exposes read-only signals.
- *
- * Generate it with:
- *   ng g service features/invoice/invoice-store
- *
- * It knows `InvoiceApi` and the domain. It does not know HttpClient, does not
- * know the API's field names, and does not build URLs.
- */
-
 import { inject, Service, computed, signal } from '@angular/core';
 import type { Invoice, NewInvoice } from './invoice.model';
 import type { PageMeta } from './pagination';
@@ -23,13 +13,11 @@ export class InvoiceStore {
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
 
-  // Writable signals stay private. Consumers get read-only views.
   readonly invoices = this._invoices.asReadonly();
   readonly meta = this._meta.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
-  // Derived state is computed, never stored — a stored copy goes stale.
   readonly grandTotal = computed(() =>
     this._invoices().reduce((acc, invoice) => acc + calculateTotals(invoice.lines).total, 0),
   );
@@ -45,7 +33,6 @@ export class InvoiceStore {
         this._loading.set(false);
       },
       error: () => {
-        // A message for a human. Never the raw HTTP error, never a token.
         this._error.set('Could not load invoices.');
         this._loading.set(false);
       },
@@ -54,7 +41,6 @@ export class InvoiceStore {
 
   create(input: NewInvoice): void {
     this.api.create(input).subscribe({
-      // Refetch instead of hand-patching: the server stays the source of truth.
       next: () => this.load(),
       error: () => this._error.set('Could not create the invoice.'),
     });

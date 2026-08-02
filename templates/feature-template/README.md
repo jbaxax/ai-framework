@@ -30,6 +30,44 @@ presentation/    components and form schemas
 | `presentation/schemas/createInvoiceSchema.ts` | The form schema satisfies the domain type — never the reverse |
 | `presentation/components/InvoiceList.tsx` | Presentation calls `application` and `domain`, never `infrastructure` |
 
+## Decisions the code cannot state
+
+The framework forbids comments, so the reasoning that a comment used to carry
+lives here. These are the non-obvious choices in the files above.
+
+**`tolerantPaginatedSchema` throws on an unrecognized shape.** It never
+normalizes a broken response into an empty page. "No results" looks like valid
+empty data and costs hours to trace; a thrown error names the field that changed.
+It tolerates a bare array only because this endpoint is documented as paginated
+and actually returns one — verified against a real call, and reported to the
+backend author. Reaching for it is a signal to report the mismatch, not a reason
+to stop reporting it.
+
+**Each line is rounded before accumulating.** Summing raw products and rounding
+once at the end produces an invoice whose printed lines do not add up to its
+printed total. `Number.EPSILON` is in `roundToCents` because `0.1 + 0.2` is
+`0.30000000000000004` and that cent reaches the customer.
+
+**Cursor pagination is a different contract, not a nicer `page`.** With
+`page`/`limit`, a row inserted while the user browses shifts everything down and
+page 2 repeats an item from page 1. A cursor points at a concrete record, so
+insertions do not move the window. The cost is real: no total, no jumping to an
+arbitrary page. A screen that shows "page 7 of 30" needs `page`/`limit`.
+
+**`next_cursor` is `nullish`, not `nullable`.** Some backends omit the field at
+the end of a list, others send `null`. Both were observed; accepting both beats
+guessing.
+
+**`z.coerce` lives in the schemas.** This API sends numbers as strings. Coercing
+at the boundary means no component ever does `Number(...)` on a payload.
+
+**`toNewInvoice` is the seam between the form and the domain.** If the domain
+gains a required field, this function stops compiling and the form is forced to
+catch up. Without it the two shapes drift silently.
+
+**`invoiceKeys` is a shared object** so mutations can invalidate queries without
+re-typing a key that a typo would break.
+
 ## Dependency direction
 
 ```

@@ -9,8 +9,6 @@ export function useCreateInvoice() {
   return useMutation({
     mutationFn: (input: NewInvoice) => createInvoice(input),
     onSuccess: () => {
-      // Invalidate rather than hand-patch the cache: the server stays the
-      // source of truth, and the list picks up whatever it computed.
       void queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
     },
   });
