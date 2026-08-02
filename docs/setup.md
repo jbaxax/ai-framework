@@ -41,6 +41,17 @@ guarantee. The rules file makes it a mechanism.
 Nothing extra. `rules/angular.md` is not copied, and even if it were, its
 `paths` would never match.
 
+## Full-stack personal projects
+
+```bash
+mkdir -p .claude/rules
+cp <framework>/rules/backend.md .claude/rules/
+```
+
+Same mechanism: `paths` matches controllers, modules, and `prisma/`, so the
+NestJS rules load only when the work is actually backend. A frontend-only
+project never pays for them.
+
 ## Existing projects
 
 The framework applies to new code first. See "Existing projects" in `CLAUDE.md`
@@ -52,3 +63,10 @@ before restructuring anything that already works.
 - [ ] `skills/` and `docs/` exist at the project root
 - [ ] Angular only: `.claude/rules/angular.md` exists
 - [ ] Angular only: `/context` shows the rule after Claude reads a file in `src/app/`
+- [ ] Full-stack only: `.claude/rules/backend.md` exists
+
+## Then what
+
+Read `workflow.md` before the first feature. It covers where the framework sits
+in the lifecycle and how to write the prompt that starts each phase — including
+the case where the requirement arrives over chat instead of as a document.

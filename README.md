@@ -35,10 +35,13 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 |---|---|
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `rules/angular.md` | Path-scoped rule — copy to `.claude/rules/` in Angular projects |
+| `rules/backend.md` | Path-scoped rule — NestJS/Prisma, full-stack projects only |
 | `docs/setup.md` | How to install the framework in a project |
+| `docs/workflow.md` | Where this sits in the lifecycle, and how to write the prompt |
 | `docs/clean-architecture.md` | How the layers work, and where each file goes |
 | `docs/conventions.md` | Naming and code rules for both stacks |
 | `docs/stack-defaults.md` | The stack, and why each default was chosen |
+| `skills/requirements/` | Turning a chat message or user story into testable criteria |
 | `skills/auth/` | Sessions, cookies, token storage, what never to do |
 | `skills/api-client/` | HTTP clients, interceptors, pagination, verifying backend docs |
 | `skills/testing/` | Vitest, what to test first, what not to test |
@@ -48,7 +51,11 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 `CLAUDE.md` is written for the agent. `docs/` is written for you — it explains
 the reasoning that the rules compress.
 
-## The three rules everything rests on
+## The four rules everything rests on
+
+**Requirements before code.** A request that arrives as prose — a chat message,
+a user story, a bug report — gets restated as acceptance criteria first.
+Implementing prose means inventing the unstated parts silently.
 
 **Ask before assuming.** If a relevant technical decision is not specified —
 auth method, state management, a new dependency — Claude asks instead of
