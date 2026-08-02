@@ -33,7 +33,7 @@ requires:
 
 | Missing | Consequence |
 |---|---|
-| `"strict": true` | **an existing project does not have it either** — it ships `strictInjectionParameters` and `strictInputAccessModifiers`, which are Angular options, not TypeScript strict mode |
+| `"strict": true` | The scaffold ships `strictInjectionParameters` and `strictInputAccessModifiers`, which are Angular compiler options, not TypeScript strict mode. Existing projects generated the same way do not have it either |
 | `src/environments/` | The rule "base URL comes from `environment.apiUrl`" points at a directory the CLI never creates. `ng generate environments` is a separate command |
 | `ChangeDetectionStrategy.OnPush` | Every generated component starts non-compliant |
 

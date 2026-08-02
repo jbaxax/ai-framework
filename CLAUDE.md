@@ -101,6 +101,7 @@ Use without asking. Deviating requires asking first.
 | HTTP client | `fetch` same-origin; Axios instance for external APIs (`skills/api-client`) |
 | Validation | Zod |
 | Forms | React Hook Form + Zod resolver |
+| UI components | shadcn/ui + Tailwind, copied into `components/ui/` |
 | Testing | Vitest (`skills/testing`) |
 | Package manager | bun — do not migrate a legacy `pnpm`/`npm` project as a side effect |
 
@@ -162,7 +163,7 @@ which is layer-first through the back door.
 | Path | Contents | Rule |
 |---|---|---|
 | `app/` | Routing, route handlers | Handlers orchestrate by calling `domain` and `infrastructure`. They hold no rules of their own |
-| `components/ui/` | Design-system primitives | No business logic, no fetching |
+| `components/ui/` | UI library components (shadcn / PrimeNG wrappers) | No business logic, no fetching. Never imports from `features/` |
 | `components/shared/` | Cross-feature UI | Used by 2+ features. Used by one? It belongs to that feature |
 | `lib/` | Framework-agnostic utilities, client setup | Pure and testable |
 | `hooks/` | Generic hooks (`useDebounce`) | Feature-specific hooks go in that feature's `application/` |

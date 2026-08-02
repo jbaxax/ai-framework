@@ -21,6 +21,7 @@ live in `docs/angular.md`.
 | Signals | Keep writable signals private; expose `.asReadonly()` |
 | Derived state | `computed()` — never a stored copy |
 | Base URL | `environment.apiUrl` — never a hardcoded host or IP |
+| UI components | PrimeNG + `@primeng/themes`. Style through the theme, not overrides |
 | Tests | Delete CLI-generated `should create` specs; they cannot fail |
 
 The CLI does **not** give you three of these. Check on a fresh project:
@@ -51,6 +52,11 @@ Angular features stay flat; the file name carries the layer.
 
 `core/` holds only cross-cutting singletons — guards, interceptors, auth. A
 service used by one feature lives beside that feature, never in `core/services/`.
+
+PrimeNG components are used directly in a feature's presentation template. A
+wrapper goes in `shared/ui/` only when two or more features need the same
+configured variant — never in anticipation. A wrapper never knows a business
+rule: a table component does not know what a `comprobante` is.
 
 ```bash
 ng g service   features/invoice/invoice-api

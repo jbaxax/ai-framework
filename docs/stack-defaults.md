@@ -22,8 +22,28 @@ full-stack personal projects — ignore it entirely when the work is frontend-on
 | HTTP client | Axios, one shared instance | Interceptors and error normalization in one place |
 | Validation | Zod | Same schema validates and produces the type |
 | Forms | React Hook Form + Zod resolver | Uncontrolled by default, fewer re-renders |
+| UI components | shadcn/ui + Tailwind | Copied into the repo, not a dependency |
 | Testing | Vitest | Same runner as Angular v22 |
 | Package manager | bun | Migration target for all projects |
+
+### The UI library is a boundary, not a stack choice
+
+Whatever the library, it lands in `components/ui/` and the dependency points one
+way:
+
+```
+features/*/presentation/  →  components/ui/
+```
+
+`components/ui/` never imports from `features/`, never fetches, and never knows a
+business rule. A `<Button>` does not know what an invoice is.
+
+This is the same rule as every other layer, and it exists for the same reason:
+when the library is abandoned or outgrown, one folder changes instead of the app.
+A data table that knows what a `comprobante` is cannot be replaced.
+
+**shadcn/ui is chosen partly because it is not a dependency.** Its components are
+copied into the repo and become yours. Abandonment cannot break a build.
 
 ### Server state vs client state
 
@@ -55,11 +75,35 @@ Used where a project already runs on it. Same architecture, different idioms.
 | Server state | `HttpClient` + RxJS — no React Query equivalent |
 | HTTP | Functional interceptors |
 | Testing | Vitest via `ng test` |
+| UI components | PrimeNG + `@primeng/themes` |
 | Base URL | `environment.apiUrl` |
 | Dev proxy | `proxy.conf.json`, target read from an env var |
 
 Never commit a host or IP in a tracked file, including `proxy.conf.json`. It
 stays in git history after the file is fixed.
+
+### Why PrimeNG and not a shadcn-style library
+
+Angular has one: [spartan/ui](https://spartan.ng), same copy-paste model, ~60
+components. It was evaluated and rejected as a **default** on stability grounds:
+
+| | PrimeNG | spartan/ui |
+|---|---|---|
+| Backing | PrimeTek, a company | Community project |
+| Support window | Two prior majors, plus a paid LTS | **Only the two latest Angular majors** |
+| Breadth | Enterprise data tables, charts, trees | ~60 primitives |
+
+That support window is the deciding fact: a project that does not upgrade Angular
+roughly every twelve months falls out of support. For work codebases that is not
+an acceptable default.
+
+spartan/ui remains a reasonable **deliberate** choice for a personal project,
+where the risk is the author's and the copy-paste model caps the damage. Choosing
+it is a decision to state, not a default to assume.
+
+If PrimeNG's look is the objection, configure `@primeng/themes` before replacing
+anything. The current theming system is not the one older projects were built on,
+and an unstyled default is not the same as an unstylable library.
 
 ## Backend (opt-in)
 

@@ -123,6 +123,33 @@ service in the app.
 Do not keep both `features/` and `pages/` as parallel homes for screens. Routes
 live in `app.routes.ts` and feature route files; screens belong to their feature.
 
+## UI components — PrimeNG
+
+The default. Not because it is the prettiest, but because a work codebase cannot
+afford a UI layer that falls out of support on a missed upgrade — PrimeNG is
+backed by a company, supports two prior majors, and sells an LTS on top.
+
+```bash
+bun add primeng @primeng/themes
+```
+
+Two rules:
+
+**Style through the theme, not through overrides.** `@primeng/themes` replaced
+the old CSS-variable-and-`::ng-deep` approach entirely. A codebase fighting
+PrimeNG with `!important` usually never configured a preset. Configure it once in
+`app.config.ts` before concluding the library looks wrong.
+
+**A PrimeNG component is used directly in a feature template.** Wrap one in
+`shared/ui/` only when a second feature needs the same configured variant, and
+never let the wrapper learn a business rule. A table that knows what a
+`comprobante` is cannot be swapped.
+
+The Angular equivalent of shadcn/ui is [spartan/ui](https://spartan.ng) — same
+copy-paste model, ~60 components. It supports only the two latest Angular majors,
+which is why it is not the default. Choosing it is a decision to state out loud,
+not a default to assume. See `stack-defaults.md`.
+
 ## Never commit a host or IP
 
 Including in `proxy.conf.json`. Read the target from an environment variable
