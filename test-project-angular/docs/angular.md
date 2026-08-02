@@ -79,21 +79,6 @@ nothing.
 Group into folders only when a feature gets large (roughly 15 files), and treat
 it as a navigation aid, not an architecture change.
 
-## What `ng new` does not give you
-
-Verified against Angular CLI 22.1.2. Three defaults this framework requires are
-**not** produced by the scaffold — check them on the first commit, not later:
-
-| Missing | Fix |
-|---|---|
-| `"strict": true` in `tsconfig.json` | Add it. The CLI ships `strictInjectionParameters` and `strictInputAccessModifiers` only — neither is TypeScript strict mode |
-| `src/environments/` | `ng generate environments`. The `environment.apiUrl` rule below points at a directory the CLI never creates |
-| `ChangeDetectionStrategy.OnPush` | Add it to every generated component. `ng g component` omits it |
-
-Adding `strict` to an existing project is a change of its own — it will surface
-errors across files that have nothing to do with the current task. Propose it
-separately.
-
 ## Generating files
 
 ```bash
@@ -136,27 +121,6 @@ component. Those cannot fail and protect nothing — **delete them**.
 
 Test pure logic instead, as in `templates/feature-template-angular/invoice-totals.spec.ts`.
 And only when tests were requested.
-
-## Verifying against a real response
-
-Angular is a browser-only SPA. Unlike Next.js it has no route handlers, so there
-is no way to exercise `-api.ts` against a real call without a second process.
-
-Run a stub that returns the backend's **actual** payload — its own vocabulary,
-its own envelope — and point `proxy.conf.json` at it. Twenty lines is enough:
-
-```ts
-Bun.serve({ port: 4100, fetch: () => Response.json({ data: [...], meta: {...} }) });
-```
-
-This is what makes the "verify the doc against a real response" step
-(`skills/api-client/`) possible without the work backend being reachable. It also
-lets you reproduce the failure on purpose: return a bare array where an envelope
-was documented and confirm the parse throws instead of rendering "no results".
-
-`-schemas.ts` and the pagination helpers import zod and nothing else, so they run
-in plain `bun` — no TestBed, no browser. That is the dependency rule paying off:
-the layer that talks to the backend is the one that is cheapest to verify.
 
 ## Reference
 

@@ -23,11 +23,6 @@ live in `docs/angular.md`.
 | Base URL | `environment.apiUrl` — never a hardcoded host or IP |
 | Tests | Delete CLI-generated `should create` specs; they cannot fail |
 
-The CLI does **not** give you three of these. Check on a fresh project:
-`"strict": true` in `tsconfig.json` (absent — `strictInjectionParameters` is not
-it), `src/environments/` (never created; run `ng generate environments`), and
-`OnPush` on every generated component.
-
 ```ts
 @Service()                                      // not @Injectable()
 export class InvoiceApi {

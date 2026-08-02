@@ -1,0 +1,45 @@
+<section>
+  <h1>Comprobantes</h1>
+
+  @if (store.loading()) {
+    <p>Cargando…</p>
+  } @else if (store.error()) {
+    <p role="alert">{{ store.error() }}</p>
+  } @else if (store.isEmpty()) {
+    <p>No hay comprobantes registrados.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Comprobante</th>
+          <th scope="col">Cliente</th>
+          <th scope="col">Emisión</th>
+          <th scope="col">Total</th>
+          <th scope="col">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (invoice of store.invoices(); track invoice.id) {
+          <tr>
+            <td>{{ invoice.series }}-{{ invoice.number }}</td>
+            <td>{{ invoice.customerName }}</td>
+            <td>{{ invoice.issuedAt | date: 'short' }}</td>
+            <td>{{ store.totalsFor(invoice).total | currency: 'PEN' }}</td>
+            <td>
+              {{ invoice.status }}
+              @if (canVoid(invoice)) {
+                <button type="button">Anular</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <p>Página {{ store.page() }} de {{ store.totalPages() }}</p>
+
+    @if (store.hasNextPage()) {
+      <button type="button" (click)="nextPage()">Siguiente</button>
+    }
+  }
+</section>
