@@ -25,7 +25,7 @@ This framework used to start at **Implement**. `CLAUDE.md` and the skills answer
 | Criteria | You + Claude | EARS acceptance criteria | `skills/requirements/` |
 | Design | You decide, Claude proposes | Layer plan, contracts | `CLAUDE.md` §1.2, §3 |
 | Implement | Claude | Code | `CLAUDE.md`, `skills/` |
-| Verify | Claude, proven | Real output | `CLAUDE.md` §5 |
+| Verify | Claude, proven | The `fw evidence` table | `CLAUDE.md` §6, `skills/testing/` |
 
 **Do not collapse Criteria into Implement.** That is the whole point. Criteria
 are cheap to change while they are still sentences.

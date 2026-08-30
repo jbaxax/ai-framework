@@ -31,6 +31,7 @@ work — it was never a rule against testing.
 | Task inside an SDD change, Strict TDD off | Required for every acceptance criterion | This file |
 | Bug fix — any context | **Required**: a failing test that reproduces the bug, before the fix | This file |
 | Refactor of existing code | **Required**: approval tests before touching production code | `sdd-apply/strict-tdd.md` |
+| Observable UI behavior no test can see | **Required**: a browser loop closed against the stated criterion | This file, *Closing the loop in a browser* |
 | Ad-hoc edit, spike, exploration, throwaway | Only when explicitly requested | This file |
 
 **When Strict TDD is active, this file never blocks a test.** The cycle belongs
@@ -44,6 +45,86 @@ row applies: implement, then declare untested pure logic in one line.
 Announce the resolved row before writing or skipping a test. One line:
 *"Testing mode: bug fix — failing test first."* This is what makes the decision
 auditable instead of silent.
+
+## The Evidence Gate
+
+Once the mode says a criterion must be proven, the question is **not** "is there
+a test". It is:
+
+> What is the cheapest evidence that can actually prove *this* criterion, and
+> does that evidence exist?
+
+Both halves matter. Reaching for a more expensive layer than the criterion needs
+wastes time and tokens. Reaching for a cheaper one that is blind to the failure
+produces a green check that proves nothing — which is worse, because now you
+trust it.
+
+| What the criterion is about | Cheapest sufficient evidence | Relative cost |
+|---|---|---|
+| A domain rule, calculation, or transformation | Unit test on the pure function, executed | lowest |
+| A schema or mapper at the `infrastructure/` boundary | Contract verification run against the real endpoint | low |
+| A response shape from a backend you do not own | Contract verification — a unit test cannot see their drift | low |
+| Observable UI behavior: focus, ordering, disabled state, visibility | A browser loop closed against the stated criterion | medium |
+| Config, constants, types, copy | Typecheck and build passing | near zero |
+| A refactor that must not change behavior | Approval tests green before and after | low |
+| Performance, load, anything that only fails in production | Out of scope — say so rather than faking it | — |
+
+**Never claim a criterion is met without naming its evidence row.** "Implemented"
+is not evidence. "Tests pass" is not evidence unless the run is shown.
+
+### Why the cheapest, and not the most
+
+The rule against unprompted tests was never about disliking tests. It was about
+cost: work nobody asked for spends time and tokens that the change did not
+budget. A gate that demands the maximum everywhere recreates exactly that
+problem, and a gate that costs too much gets switched off — at which point it
+protects nothing.
+
+So the gate scales. A criterion about a tax calculation is proven by a unit test
+that runs in milliseconds. The same criterion proven through the UI costs
+hundreds of times more and tells you less about where it broke.
+
+### Evidence must be produced, not asserted
+
+Run the checks and paste what came back:
+
+```bash
+fw evidence
+```
+
+It executes the project's typecheck, tests, and contracts, and prints a table
+with each command, its exit code, and its result. A verification report that
+contains a summary of that table instead of the table itself is not a
+verification — it is a claim about one.
+
+## Closing the loop in a browser
+
+Some criteria are invisible to every test layer. A modal that does not move
+focus to the first unfilled field throws no error, breaks no type, and fails no
+unit test. It is only visible to something that looks.
+
+Driving the running app to see the result, fixing, and looking again is the
+right tool for exactly those criteria. Two rules make it honest:
+
+**The criterion comes first, in writing.** Before the loop begins, state what
+would prove it done:
+
+> *When the modal opens with required fields empty, focus lands on the first
+> unfilled required field.*
+
+Without that sentence, an agent iterating "until there are no errors" converges
+on *no visible errors*, which is a different and much weaker claim. It will stop
+when the screen stops complaining — and the bug you are chasing may never have
+complained.
+
+**The loop is throwaway.** It closes the loop on this change and is not kept.
+Promote it to a committed browser spec only for a flow whose breakage costs
+money — sign-in, payment, issuing a document. Everything else is cheaper to
+re-verify by looking again than to maintain forever, and a brittle suite that
+gets deleted after three red builds never protected anything.
+
+Report what you observed, not that you observed. *"Opened the modal with two
+required fields empty; focus landed on the first."*
 
 ## Hard Rules
 

@@ -231,6 +231,9 @@ code, match what is there and flag the mismatch.
 - [ ] Types check and lint pass
 - [ ] Each acceptance criterion mapped to where it lives
 - [ ] Testing mode resolved and announced — see `skills/testing/`
+- [ ] Every criterion the mode requires proving names its evidence row, and that
+      evidence was **executed** — paste the `fw evidence` table, never a summary
+      of it
 - [ ] Untested pure logic declared in one line, when the resolved mode allows it
 
 Report failures with the actual output. Never describe unverified work as done.

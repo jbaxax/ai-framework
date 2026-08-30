@@ -106,6 +106,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 
 | Path | Purpose |
 |---|---|
+| `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence` |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `rules/angular.md` | Path-scoped rule — copy to `.claude/rules/` in Angular projects |
 | `rules/backend.md` | Path-scoped rule — NestJS/Prisma, full-stack projects only |
@@ -140,10 +141,14 @@ picking one.
 free of React, Angular, HTTP, and the database, which is what makes it cheap to
 verify and safe to keep.
 
-**Testing is decided by context.** An acceptance criterion is a test request, and
-a bug fix always starts with a failing test. Ad-hoc work gets none unless asked,
-and untested pure logic is declared in one line at the end, so the decision stays
-visible. `skills/testing/` holds the gate that resolves which case applies.
+**Testing is decided by context, and proven by the cheapest evidence that can
+prove it.** An acceptance criterion is a test request; a bug fix always starts
+with a failing test; ad-hoc work gets none unless asked. Once a criterion must be
+proven, the question is not "is there a test" but which evidence could actually
+catch its failure — a unit test for a calculation, a contract run for a backend
+shape, a browser for what only a browser can see. `skills/testing/` holds both
+gates, and `fw evidence` produces the proof so it is executed rather than
+claimed.
 
 ## Stack
 
