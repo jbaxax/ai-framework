@@ -23,12 +23,40 @@ This framework used to start at **Implement**. `CLAUDE.md` and the skills answer
 |---|---|---|---|
 | Requirement | Your client, PM, or boss | A message, a call, a story | — |
 | Criteria | You + Claude | EARS acceptance criteria | `skills/requirements/` |
+| Boundary | You, with the requester | The epic — only when work spans slices | `skills/epic/` |
 | Design | You decide, Claude proposes | Layer plan, contracts | `CLAUDE.md` §1.2, §3 |
 | Implement | Claude | Code | `CLAUDE.md`, `skills/` |
 | Verify | Claude, proven | The `fw evidence` table | `CLAUDE.md` §6, `skills/testing/` |
 
 **Do not collapse Criteria into Implement.** That is the whole point. Criteria
 are cheap to change while they are still sentences.
+
+## Two levels of planning, not one
+
+The phases above describe **one slice**. Work that ships in several slices needs
+a second level, and confusing the two is where planning goes wrong in both
+directions.
+
+| Level | Artifact | Changes | Granularity |
+|---|---|---|---|
+| Map | The epic — boundary, standing decisions, slices | Rarely | Coarse. No tasks |
+| Slice | Criteria → proposal → design → tasks | Every change | Fine. Executable |
+
+The map gives **coherence**: each slice is locally correct, and without something
+holding the decisions made in slice 1, slice 4 quietly contradicts them. The
+slice gives **execution**.
+
+Planning everything down to tasks up front gives neither. That plan is stale by
+the third slice, because the constraints you discover while building are exactly
+the ones you could not have known while planning. This matters most in
+maintenance work, where you cannot plan what you have not read yet.
+
+The opposite failure is just as real: slicing with no map at all, which is how a
+codebase ends up with two ways to do the same thing and no one able to say which
+is correct.
+
+Write the epic only when a second slice would need to know something the first
+one decided. Below that threshold it is overhead. See `skills/epic/`.
 
 ## Writing the prompt
 

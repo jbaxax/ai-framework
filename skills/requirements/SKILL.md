@@ -132,11 +132,15 @@ Report, in this order:
 5. After implementation: criterion → file mapping
 
 Keep it under a page. If the criteria list passes ~10 items, the request is more
-than one feature — say so and propose the split.
+than one feature — say so and propose the split. That split is recorded in
+`../epic/`, which holds the boundary across slices and the decisions each slice
+must respect. Do not carry it in your head between changes; that is exactly the
+information that does not survive a week.
 
 ## References
 
 - `../../CLAUDE.md` §1.1 — ask before assuming
+- `../epic/SKILL.md` — the boundary and standing decisions across several slices
 - `../testing/SKILL.md` — criteria become tests only when tests are requested
 - `../api-client/SKILL.md` — verifying a backend `.md` against the real response
 - EARS: Mavin et al., <https://alistairmavin.com/ears/>
