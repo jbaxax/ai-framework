@@ -17,6 +17,7 @@ installs into an existing project without reaching the people who share it.
 - Installing into new and existing projects, per stack
 - A boundary artifact that survives between changes
 - Backend rules reaching parity with the frontend ones
+- Content sites (Astro), which get the planning half and not the architecture
 
 ### Not in
 
@@ -64,7 +65,7 @@ installs into an existing project without reaching the people who share it.
 | 5 | Epic — boundary across slices | done | — |
 | 6 | Verification standards owned in our own skill | done | 4 |
 | 7 | NestJS profile at parity | not started | 3 |
-| 8 | Visual design layer | not started | — |
+| 8 | Visual design layer — Impeccable | done | — |
 | 9 | Backlog and Definition of Ready | done | 5 |
 | 10 | Machine configuration versioned at its source | done | 3 |
 | 11 | Skills reach every agent that executes | done | 3 |
@@ -72,6 +73,7 @@ installs into an existing project without reaching the people who share it.
 | 13 | Diagnosis loop for maintenance work | done | 2, 4 |
 | 14 | Codebase graph for impact analysis | done | 13 |
 | 15 | Grilling: rounds, entry cases, closing axes | done | 9 |
+| 16 | Astro profile — a content site is not an app | done | 3 |
 
 ## Open questions for the requester
 

@@ -3,6 +3,8 @@
     "claude-code",
     "opencode"
   ],
+  "installed_binary_version": "2.4.0",
+  "managed_asset_digest": "sha256:0261e5e2d143528013b54aa1e928e235bff7aaaf1265db566d6b67418eac1a80",
   "claude_phase_assignments": {
     "default": {
       "model": "sonnet"
@@ -44,5 +46,6 @@
       "model": "sonnet"
     }
   },
-  "persona": "neutral"
+  "persona": "neutral",
+  "last_update_check": "2026-08-30T14:01:42.785932278-05:00"
 }

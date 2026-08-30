@@ -1,29 +1,29 @@
 {
-  "model": "opus",
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "gentle-ai skill-registry refresh --quiet --no-gitignore --cwd \"${CLAUDE_PROJECT_DIR:-$PWD}\" || true"
-          }
-        ]
-      }
-    ]
-  },
   "enabledPlugins": {
     "engram@engram": true
   },
   "extraKnownMarketplaces": {
     "engram": {
       "source": {
-        "source": "github",
-        "repo": "Gentleman-Programming/engram"
+        "repo": "Gentleman-Programming/engram",
+        "source": "github"
       }
     }
   },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "gentle-ai skill-registry refresh --quiet --no-gitignore --cwd \"${CLAUDE_PROJECT_DIR:-$PWD}\" || true",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ]
+  },
+  "model": "opus",
   "outputStyle": "Neutral",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark"

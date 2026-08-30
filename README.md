@@ -41,6 +41,10 @@ counting the distinct commit authors:
 | Repository | Detected as | Installs |
 |---|---|---|
 | Yours alone | personal | `CLAUDE.md` + `docs/`, committed normally |
+
+A content site (Astro) is detected and gets the planning, conventions and workflow
+docs without the layered architecture — a landing has no domain to protect, and
+installing the rule anyway teaches the agent to invent layers nobody asked for.
 | Shared with a team | shared | `CLAUDE.local.md` + `.fw/docs/`, invisible to git |
 
 Force either with `--personal` or `--shared`. Use `--dry-run` to see the plan

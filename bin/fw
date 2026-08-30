@@ -45,6 +45,7 @@ detect_stacks() {
   has_dep 'next'          && found+=(react-next)
   if ! has_dep 'next' && has_dep 'react'; then found+=(react); fi
   has_dep '@nestjs/core'  && found+=(nest)
+  has_dep 'astro'         && found+=(astro)
   printf '%s\n' "${found[@]:-}"
 }
 
@@ -132,7 +133,7 @@ cmd_install() {
   local stacks; mapfile -t stacks < <(detect_stacks)
   if [ "${#stacks[@]}" -eq 0 ] || [ -z "${stacks[0]}" ]; then
     warn "no known stack detected in package.json"
-    note "expected one of: next, react, @angular/core, @nestjs/core"
+    note "expected one of: next, react, @angular/core, @nestjs/core, astro"
   else
     for s in "${stacks[@]}"; do ok "stack detected: $s"; done
   fi
@@ -173,8 +174,18 @@ cmd_install() {
   ok "$target_claude"
 
   mkdir -p "$target_docs"
-  cp "$FW_ROOT"/docs/*.md "$target_docs"/
-  ok "$target_docs/ ($(ls -1 "$FW_ROOT"/docs/*.md | wc -l | tr -d ' ') files)"
+  if [ "${stacks[*]}" = "astro" ]; then
+    for doc in "$FW_ROOT"/docs/*.md; do
+      case "$(basename "$doc")" in clean-architecture.md|angular.md) continue ;; esac
+      cp "$doc" "$target_docs"/
+    done
+    ok "$target_docs/ ($(ls -1 "$target_docs"/*.md | wc -l | tr -d ' ') files)"
+    note "content site: the layered architecture is not installed — it earns nothing here"
+    note "planning, testing and diagnosis skills are global and still apply"
+  else
+    cp "$FW_ROOT"/docs/*.md "$target_docs"/
+    ok "$target_docs/ ($(ls -1 "$FW_ROOT"/docs/*.md | wc -l | tr -d ' ') files)"
+  fi
 
   cmd_doctor
 }
