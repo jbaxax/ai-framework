@@ -9,49 +9,55 @@ project — and it already knows how you work.
 
 ## Install
 
-### Once per machine — clone the framework
+### Once per machine
 
 ```bash
 git clone git@github.com:jbaxax/ai-framework.git ~/ai-framework
-export FW=~/ai-framework
+~/ai-framework/bin/fw link
 ```
 
-Add the `export` to `~/.zshrc` so it survives new shells. This repo is never a
-dependency of your projects — files are copied out of it, so a project keeps
-working after the framework changes. To pick up updates, `git pull` here and copy
-again.
+`fw link` symlinks the rules and skills into `~/.claude/`, and adds the personal
+files to your global gitignore. Symlinks, not copies: improve a rule here and
+every project has it immediately, with no reinstall.
 
-The rest is done **once per project**, not per session.
+Because rules and skills live in your user scope, they are never inside a project
+and can never appear in a commit.
 
-### Every project
+### Once per project
 
 ```bash
 cd <project>
-cp    $FW/CLAUDE.md   .
-cp -r $FW/skills $FW/docs   .
+fw install
 ```
 
-### Then, by stack — one extra step
+It reads `package.json` to detect the stack, and decides how to install by
+counting the distinct commit authors:
 
-```bash
-mkdir -p .claude/rules
+| Repository | Detected as | Installs |
+|---|---|---|
+| Yours alone | personal | `CLAUDE.md` + `docs/`, committed normally |
+| Shared with a team | shared | `CLAUDE.local.md` + `.fw/docs/`, invisible to git |
 
-cp $FW/rules/angular.md .claude/rules/     # Angular
-cp $FW/rules/backend.md .claude/rules/     # NestJS / Prisma
-                                           # React / Next.js: nothing
-```
+Force either with `--personal` or `--shared`. Use `--dry-run` to see the plan
+without writing.
 
-These declare `paths` in their frontmatter, so Claude Code loads them only when
-the files being touched match. An Angular project never pays for the backend
-rules, and a Next.js project never pays for either.
+If a `CLAUDE.md` already exists that this framework did not write, `fw install`
+**aborts without writing anything** — that file belongs to the project, and a
+half install leaves your files in someone else's repository.
 
 ### Verify
 
-Run `/context` in a session and look under **Memory files**:
+```bash
+fw doctor
+```
 
-- [ ] `CLAUDE.md` is listed
-- [ ] `skills/` and `docs/` exist at the project root
-- [ ] Angular: `.claude/rules/angular.md` appears after Claude reads a file in `src/app/`
+It confirms the symlinks resolve, the global gitignore is in place, and nothing
+personal is visible to git. Run it inside a shared repository before you push;
+it also catches the one case a gitignore cannot fix — a personal file that was
+already committed, which it tells you to untrack with `git rm --cached`.
+
+For what actually loaded in a session, run `/context` and read under
+**Memory files**.
 
 ### New project
 
@@ -85,9 +91,10 @@ way, then:
 2. **Do not restructure what works** as a side effect of another task. Moving
    folders produces diffs nobody can review and conflicts for everyone else.
 3. **Propose migrations one module at a time**, never silently.
-4. In a shared repository use **`CLAUDE.local.md`** instead of `CLAUDE.md`, so
-   your conventions are not imposed on teammates who never agreed to them. Add it
-   to `.gitignore`.
+4. In a shared repository your conventions stay yours. `fw install` detects this
+   and writes `CLAUDE.local.md` plus `.fw/docs/`, both covered by the global
+   gitignore — nothing is imposed on teammates who never agreed to it, and
+   nothing reaches a pull request.
 
 Four things are worth fixing immediately, because they are cheap and isolated:
 a committed host or IP, an env file required to build but gitignored, tests that
@@ -114,6 +121,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `skills/testing/` | Vitest, what to test first, what not to test |
 | `templates/feature-template/` | A complete React feature, as reference |
 | `templates/feature-template-angular/` | The same feature in Angular v22 |
+| `templates/contract-verification/` | Executable check that a backend you do not own still matches its documentation |
 
 `CLAUDE.md` is written for the agent. `docs/` is written for you — it explains
 the reasoning that the rules compress.
@@ -132,8 +140,10 @@ picking one.
 free of React, Angular, HTTP, and the database, which is what makes it cheap to
 verify and safe to keep.
 
-**Tests are written on request.** Never added unprompted. Untested pure logic is
-declared in one line at the end, so the decision stays visible.
+**Testing is decided by context.** An acceptance criterion is a test request, and
+a bug fix always starts with a failing test. Ad-hoc work gets none unless asked,
+and untested pure logic is declared in one line at the end, so the decision stays
+visible. `skills/testing/` holds the gate that resolves which case applies.
 
 ## Stack
 
