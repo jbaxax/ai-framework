@@ -47,6 +47,7 @@ installs into an existing project without reaching the people who share it.
 | The installer has no runtime dependency | It may run on a machine without bun | `bin/fw` |
 | Do not fight a framework's imposed structure; map the dependency rule onto it | Already settled once for Angular: the rule lives in the imports, not the folder names | The Nest slice |
 | Never edit a file belonging to another author; own the standard in our own skill instead | A patched vendor file is overwritten silently on reinstall, has no history, and cannot be told apart from the author's own text | Anything that would tighten an installed tool's behaviour |
+| Borrow concepts from other authors, never their files | A concept costs nothing to own and can be verified against our own stack. A copied file cannot be told from ours, is silently replaced on reinstall, and may carry a licence we cannot honour | Anything adopted from outside |
 | Every agent that writes code gets the same skills | Standards are only worth what they cost at execution time. An agent running without them is an agent running without the framework | Install slices, any new agent |
 | Version the source a tool reads, never the output it writes | Generated output regenerates differently on the next sync, with no conflict and no warning. Here the source is 43 lines and the output is 528 | Machine configuration, agent configs |
 
@@ -65,6 +66,7 @@ installs into an existing project without reaching the people who share it.
 | 9 | Backlog and Definition of Ready | done | 5 |
 | 10 | Machine configuration versioned at its source | done | 3 |
 | 11 | Skills reach every agent that executes | done | 3 |
+| 12 | Seam, tautology and slice rhythm absorbed into testing | done | 1 |
 
 ## Open questions for the requester
 

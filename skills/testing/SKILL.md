@@ -4,7 +4,7 @@ description: "Trigger: test, unit test, spec file, vitest, coverage, mock, asser
 license: Apache-2.0
 metadata:
   author: "walterjave"
-  version: "2.0"
+  version: "3.0"
 ---
 
 ## Activation Contract
@@ -35,8 +35,9 @@ work — it was never a rule against testing.
 | Ad-hoc edit, spike, exploration, throwaway | Only when explicitly requested | This file |
 
 **When Strict TDD is active, this file never blocks a test.** The cycle belongs
-to `strict-tdd.md`; this file supplies the judgment it does not carry — which
-layer is worth the cost, what must never be mocked, which assertions are fake.
+to `strict-tdd.md`; this file supplies the judgment it does not carry — where the
+seam is, which layer is worth the cost, what must never be mocked, which
+assertions are fake, and how wide a slice may be.
 Both apply at once. They do not compete.
 
 **When no mode is stated and the work is not part of an SDD change**, the last
@@ -96,6 +97,34 @@ It executes the project's typecheck, tests, and contracts, and prints a table
 with each command, its exit code, and its result. A verification report that
 contains a summary of that table instead of the table itself is not a
 verification — it is a claim about one.
+
+## The Seam — name it before writing
+
+The Evidence Gate decides *what proof* a criterion needs. The seam decides
+**where that proof is observed**: the public boundary you can watch without
+reaching inside.
+
+State it before the first test:
+
+> *"Seam: `invoiceTotal(lines)` in `domain/`. Observing the returned total, not
+> the reducer inside it."*
+
+Two things follow from naming it.
+
+**A test written at an unnamed seam drifts inward.** With no boundary stated,
+the easiest thing to assert on is whatever is nearest — a private helper, an
+internal call count, a rendered class name. That test then breaks on every
+refactor while the behavior never changed, which is how a suite stops being a
+safety net and becomes a tax.
+
+**You cannot test everything, so the seam is where the budget lands.** Naming it
+puts the effort on critical paths and complex logic instead of spreading it thin
+across every edge case.
+
+When the seam itself is unclear — the logic is tangled through a component, the
+boundary does not exist yet — that is not a testing problem. Extract into
+`domain/` first, then test the extraction. The Decision Gates table below says
+which layer earns it.
 
 ## Closing the loop in a browser
 
@@ -182,20 +211,43 @@ were not asked to change.
 | Refactoring without behavior change | Approval tests first — capture current output, even if it looks wrong |
 | Asked only to read or diagnose | No tests |
 
+## One slice at a time
+
+Write one test, make it pass, then write the next. Never write the whole suite
+first and implement afterwards.
+
+Tests written in bulk before any implementation exists verify **imagined**
+behavior. You are guessing at the shape of code you have not written, so they
+describe structure rather than outcomes, and each one locks in a decision you
+were not yet qualified to make. By the third test the first two are already
+wrong — and expensive to change, because they look finished.
+
+Each test is a **tracer bullet**: it teaches you something about the design, and
+the next one is chosen using what the last one taught.
+
+**This governs delegation too.** Handing another agent — or a cheaper model — ten
+tests and asking for an implementation is the same mistake with extra steps. It
+commits the whole design at the moment you know least, and it points the agent
+at making ten red tests green rather than at the behavior underneath. Delegate
+one slice, review it, then the next.
+
 ## Execution Steps
 
 1. **Resolve the mode** and announce the row that applied.
-2. If Strict TDD is active, follow `strict-tdd.md` and stop reading here for the
-   cycle — return to this file only for layer choice and assertion quality.
-3. Name the case after the behavior: `returns zero when the list is empty` —
+2. If Strict TDD is active, `strict-tdd.md` owns the red-green cycle. This file
+   still governs the seam, the layer, the slice rhythm and assertion quality.
+3. **Name the seam** and say it out loud before the first test — what is being
+   observed, and from outside what boundary.
+4. Name the case after the behavior: `returns zero when the list is empty` —
    never `should work` or `test 1`.
-4. Arrange, act, assert — in that order, visibly separated.
-5. Write edge cases first: `null`, `undefined`, zero, negative, empty array,
-   boundary values. The happy path rarely holds the bug.
-6. One behavior per test. Multiple unrelated assertions mean multiple tests.
-7. Keep tests deterministic: inject the clock and randomness, never call
+5. Arrange, act, assert — in that order, visibly separated.
+6. **Choose an edge case before the happy path** — `null`, `undefined`, zero,
+   negative, empty array, boundary values — and write that one test, not all of
+   them. The happy path rarely holds the bug; the batch rarely holds the design.
+7. One behavior per test. Multiple unrelated assertions mean multiple tests.
+8. Keep tests deterministic: inject the clock and randomness, never call
    `Date.now()` or `Math.random()` directly in the code under test.
-8. Run the suite and report actual output. Never describe unverified tests as
+9. Run the suite and report actual output. Never describe unverified tests as
    passing.
 
 ## Assertion Quality
@@ -214,6 +266,44 @@ zero times, and any assertion on a CSS class name.
 A test that renders a component and asserts only that it rendered is a smoke
 test. It does not count.
 
+### The tautology that survives review
+
+The obvious one is easy to catch. The dangerous one looks like a real test —
+it calls production code, asserts a specific value, and reads well:
+
+```ts
+// invoice.ts — round2 truncates instead of rounding
+export const round2 = (n: number) => Math.trunc(n * 100) / 100;
+export const sumLines = (lines: Line[]) => lines.reduce((s, l) => s + l.qty * l.price, 0);
+export const invoiceTotal = (lines: Line[]) => round2(sumLines(lines));
+```
+
+```ts
+// Fake — the expected value is built from the code's own helpers
+expect(invoiceTotal(lines)).toBe(round2(sumLines(lines)));
+
+// Real — the expected value comes from outside the implementation
+expect(invoiceTotal(lines)).toBe(92.01);
+```
+
+Run against that bug, the first is **green** and the second fails with
+`expected 92 to be 92.01`. The fake passes by construction: it reuses the same
+broken rounding to build its expectation, so it can never disagree with the
+code — it *is* the code, asserted against itself.
+
+The tell is not "the test does arithmetic". It is **the expected value was
+produced by the unit under test, or by anything it imports.** A test may reuse a
+fixture, a literal, or a figure from the spec; it may never reuse the
+implementation's own helpers to decide what the answer should be.
+
+**An expected value must come from an independent source of truth**: a number
+worked out by hand, a figure stated in the acceptance criterion, a total the
+client confirmed. If it was produced by running the implementation, the test
+records behavior instead of verifying it.
+
+This is the assertion an agent under time or token pressure reaches for, because
+it always passes. Check for it first in any test you did not write yourself.
+
 ## Interaction with SDD
 
 `sdd-init` resolves Strict TDD per project and caches it. It defaults to
@@ -231,3 +321,11 @@ strict_tdd: false
 If a session ever surfaces both "Strict TDD is active" and "tests only on
 request", the Mode Resolution table above is the tiebreaker. Report that the
 conflict appeared, then continue under the resolved row.
+
+## References
+
+Seams, the tautology test, and vertical slicing are adapted from the `tdd` skill
+in [mattpocock/skills](https://github.com/mattpocock/skills) (MIT). The gates
+they sit inside — Mode Resolution, the Evidence Gate, the Decision Gates — are
+this framework's own, and they decide *whether* a test is written before the
+rules above decide *how*.
