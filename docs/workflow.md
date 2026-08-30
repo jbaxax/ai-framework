@@ -109,9 +109,10 @@ second feature that nobody asked for.
 
 ## Two habits that carry most of the value
 
-**Say when tests are and are not wanted.** The default is none
-(`skills/testing/`). Silence is not a request. Saying `Tests: none` costs four
-words and removes the ambiguity.
+**Know which testing mode you are in.** There is no single default —
+`skills/testing/` resolves it from context. Approved criteria and bug fixes carry
+their own test requirement; ad-hoc work does not. Saying `Tests: none` still
+costs four words and still removes the ambiguity when you want it off.
 
 **Ask for the criterion → file mapping at the end.** A criterion with no file is
 a criterion that was not implemented. It is the cheapest audit available, and it

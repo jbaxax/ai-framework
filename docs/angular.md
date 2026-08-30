@@ -1,8 +1,9 @@
 # Angular v22 rules
 
 Load this file **only when the project is Angular**. Everything in `CLAUDE.md`
-still applies — the dependency rule, ask-before-assuming, testing on request,
-and the conventions. This document replaces only the React-specific idioms.
+still applies — the dependency rule, ask-before-assuming, the testing Mode
+Resolution gate, and the conventions. This document replaces only the
+React-specific idioms.
 
 ## Idioms
 

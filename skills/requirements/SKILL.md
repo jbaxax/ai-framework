@@ -39,8 +39,10 @@ empty slot is a question worth asking, not an assumption worth making.
 - One criterion, one behavior. Two `shall`s joined by "and" are two criteria.
 - Keep the requester's vocabulary. If they say "comprobante", the criteria say
   comprobante — the translation to English happens in the code, not here.
-- **Do not write tests from these criteria unless tests were requested** — see
-  `../testing/SKILL.md`. Criteria are the source for tests; they are not tests.
+- **Criteria are the source for tests; they are not tests.** Approved criteria
+  count as a test request — see the Mode Resolution gate in `../testing/SKILL.md`
+  for when that turns into tests written first. Writing criteria is not writing
+  tests: finish the criteria, get them approved, then let the gate decide.
 
 ## The shape
 

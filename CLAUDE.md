@@ -71,8 +71,10 @@ it is what makes rules like lockouts verifiable without waiting.
 Logic that is expensive to test does not get tested. A pure `domain` keeps the
 option cheap and always available.
 
-**Tests are written on request only** — see `skills/testing/`. When pure logic
-ships untested, say so in one line so the decision stays visible.
+**Testing is decided by context, not by default** — `skills/testing/` holds the
+Mode Resolution gate. An acceptance criterion is a test request; ad-hoc work is
+not. Bug fixes always start with a failing test that reproduces the bug. When
+pure logic ships untested, say so in one line so the decision stays visible.
 
 ### 1.4 Normalize before validating
 
@@ -111,14 +113,15 @@ fetching, caching, and invalidation; duplicating it reintroduces manual sync.
 Zustand is **not** a default. Only for genuinely complex client state, after asking.
 
 **Angular projects: read `docs/angular.md` before writing code.** It replaces the
-React idioms above. If `.claude/rules/angular.md` is missing from the project,
-tell the user to run this once, then continue:
+React idioms above.
 
-```bash
-mkdir -p .claude/rules && cp <framework>/rules/angular.md .claude/rules/
-```
+The stack rules live in the user scope at `~/.claude/rules/fw-*.md` and load by
+path — `fw-angular.md` on `src/app/**`, `fw-backend.md` on controllers, modules,
+and `prisma/`. Never copy a rule into a project: it is one symlink per machine,
+and a copy inside a repository is both stale and visible to everyone else. If a
+rule did not load, say so and point at `fw doctor` rather than working around it.
 
-Full-stack personal projects: `rules/backend.md` (NestJS, Prisma, PostgreSQL).
+Backend work (NestJS, Prisma, PostgreSQL) is governed by `fw-backend.md`.
 
 ---
 
@@ -227,6 +230,7 @@ code, match what is there and flag the mismatch.
 - [ ] No new dependency added without asking
 - [ ] Types check and lint pass
 - [ ] Each acceptance criterion mapped to where it lives
-- [ ] Untested pure logic declared in one line — tests only if requested
+- [ ] Testing mode resolved and announced — see `skills/testing/`
+- [ ] Untested pure logic declared in one line, when the resolved mode allows it
 
 Report failures with the actual output. Never describe unverified work as done.
