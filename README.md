@@ -20,6 +20,11 @@ git clone git@github.com:jbaxax/ai-framework.git ~/ai-framework
 files to your global gitignore. Symlinks, not copies: improve a rule here and
 every project has it immediately, with no reinstall.
 
+If OpenCode is installed it receives the same skills, symlinked from the same
+source. Standards belong wherever code is written — an agent executing without
+them produces work that looks finished and meets nothing. `fw doctor` reports
+each agent separately and exits non-zero when one of them is missing skills.
+
 Because rules and skills live in your user scope, they are never inside a project
 and can never appear in a commit.
 

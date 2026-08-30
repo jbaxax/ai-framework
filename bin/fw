@@ -3,6 +3,7 @@ set -euo pipefail
 
 FW_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+OPENCODE_HOME="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
 GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
 
 # Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
@@ -17,7 +18,8 @@ RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; DIM=$'\033[2m'; OFF=$'\0
 
 ok()   { printf '  %s✓%s %s\n' "$GREEN" "$OFF" "$1"; }
 warn() { printf '  %s!%s %s\n' "$YELLOW" "$OFF" "$1"; }
-bad()  { printf '  %s✗%s %s\n' "$RED" "$OFF" "$1"; }
+FW_BAD=0
+bad()  { FW_BAD=$((FW_BAD+1)); printf '  %s✗%s %s\n' "$RED" "$OFF" "$1"; }
 note() { printf '    %s%s%s\n' "$DIM" "$1" "$OFF"; }
 head1(){ printf '\n%s\n' "$1"; }
 
@@ -53,9 +55,25 @@ detect_sharing() {
   if [ "$authors" -gt 1 ]; then echo shared; else echo personal; fi
 }
 
+link_skills_into() {
+  local home="$1" label="$2"
+  mkdir -p "$home/skills"
+  for skill in "$FW_ROOT"/skills/*/; do
+    [ -d "$skill" ] || continue
+    local name; name="$(basename "$skill")"
+    local target="$home/skills/$name"
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      bad "$label: skill $name exists and is NOT a symlink — left untouched"
+      note "resolve by hand: $target"
+      continue
+    fi
+    link_or_warn "${skill%/}" "$target" "$label: skill $name"
+  done
+}
+
 cmd_link() {
   head1 "Linking framework into $CLAUDE_HOME (once per machine)"
-  mkdir -p "$CLAUDE_HOME/rules" "$CLAUDE_HOME/skills"
+  mkdir -p "$CLAUDE_HOME/rules"
 
   for rule in "$FW_ROOT"/rules/*.md; do
     [ -e "$rule" ] || continue
@@ -63,17 +81,15 @@ cmd_link() {
     link_or_warn "$rule" "$CLAUDE_HOME/rules/$name" "rule  $name"
   done
 
-  for skill in "$FW_ROOT"/skills/*/; do
-    [ -d "$skill" ] || continue
-    local name; name="$(basename "$skill")"
-    local target="$CLAUDE_HOME/skills/$name"
-    if [ -e "$target" ] && [ ! -L "$target" ]; then
-      bad "skill $name already exists and is NOT a symlink — left untouched"
-      note "resolve by hand: $target"
-      continue
-    fi
-    link_or_warn "${skill%/}" "$target" "skill $name"
-  done
+  link_skills_into "$CLAUDE_HOME" "claude"
+
+  if [ -d "$OPENCODE_HOME" ]; then
+    head1 "OpenCode detected at $OPENCODE_HOME"
+    note "the same skills, so an agent there works to the same standards"
+    link_skills_into "$OPENCODE_HOME" "opencode"
+  else
+    note "OpenCode not installed — skipping ($OPENCODE_HOME)"
+  fi
 
   head1 "Global gitignore"
   mkdir -p "$(dirname "$GIT_IGNORE_GLOBAL")"
@@ -188,14 +204,27 @@ cmd_doctor() {
   done
   [ "$linked" = 0 ] && warn "no framework rules linked — run 'fw link'"
 
-  local skills=0
-  for skill in "$CLAUDE_HOME"/skills/*/; do
-    [ -L "${skill%/}" ] || continue
-    case "$(readlink -f "${skill%/}")" in
-      "$FW_ROOT"/*) ok "skill linked: $(basename "$skill")"; skills=$((skills+1)) ;;
-    esac
-  done
-  [ "$skills" = 0 ] && warn "no framework skills linked — run 'fw link'"
+  count_linked_skills() {
+    local home="$1" n=0
+    for skill in "$home"/skills/*/; do
+      [ -L "${skill%/}" ] || continue
+      case "$(readlink -f "${skill%/}")" in "$FW_ROOT"/*) n=$((n+1)) ;; esac
+    done
+    printf '%s' "$n"
+  }
+
+  local total; total=$(ls -d "$FW_ROOT"/skills/*/ 2>/dev/null | wc -l | tr -d ' ')
+  local claude_n; claude_n=$(count_linked_skills "$CLAUDE_HOME")
+  if [ "$claude_n" -eq "$total" ]; then ok "claude: $claude_n/$total skills linked"
+  elif [ "$claude_n" = 0 ]; then warn "claude: no framework skills linked — run 'fw link'"
+  else bad "claude: only $claude_n/$total skills linked — run 'fw link'"; fi
+
+  if [ -d "$OPENCODE_HOME" ]; then
+    local oc_n; oc_n=$(count_linked_skills "$OPENCODE_HOME")
+    if [ "$oc_n" -eq "$total" ]; then ok "opencode: $oc_n/$total skills linked"
+    elif [ "$oc_n" = 0 ]; then bad "opencode: installed but has none of the skills — run 'fw link'"
+    else bad "opencode: only $oc_n/$total skills linked — run 'fw link'"; fi
+  fi
 
   if [ -f "$GIT_IGNORE_GLOBAL" ] && grep -qxF '.fw/' "$GIT_IGNORE_GLOBAL"; then
     ok "global gitignore configured"
@@ -217,6 +246,8 @@ cmd_doctor() {
       ok "nothing personal is visible to git"
     fi
   fi
+
+  [ "$FW_BAD" -eq 0 ] || { head1 "$FW_BAD problem(s) found"; return 1; }
 }
 
 pkg_script() {
