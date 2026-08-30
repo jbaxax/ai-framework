@@ -30,10 +30,10 @@ installs into an existing project without reaching the people who share it.
 
 ### Not decided yet
 
-- How to version `~/.claude` so the `sdd-verify` corrections survive a reinstall
-  — blocks nothing yet, but the fixes are currently unbacked on disk
 - Whether the browser loop should be driven by a committed helper or ad hoc —
   blocks the E2E slice
+- Whether the backlog and its ordering rule belong in this framework or in a
+  separate place — blocks nothing, but the list currently lives in nobody's file
 
 ## Standing decisions
 
@@ -46,6 +46,7 @@ installs into an existing project without reaching the people who share it.
 | Evidence is produced by a command, never asserted in prose | A summary of a run is not a run | Verification, CI |
 | The installer has no runtime dependency | It may run on a machine without bun | `bin/fw` |
 | Do not fight a framework's imposed structure; map the dependency rule onto it | Already settled once for Angular: the rule lives in the imports, not the folder names | The Nest slice |
+| Never edit a file belonging to another author; own the standard in our own skill instead | A patched vendor file is overwritten silently on reinstall, has no history, and cannot be told apart from the author's own text | Anything that would tighten an installed tool's behaviour |
 
 ## Slices
 
@@ -55,10 +56,11 @@ installs into an existing project without reaching the people who share it.
 | 2 | Contract verification against backend docs | done | — |
 | 3 | Installer with stack and sharing detection | done | — |
 | 4 | Evidence gate scaled by cost, `fw evidence` | done | 1 |
-| 5 | Epic — boundary across slices | in progress | — |
-| 6 | NestJS profile at parity | not started | 3 |
-| 7 | Visual design layer | not started | — |
-| 8 | Version `~/.claude` or relocate the vendor fixes | not started | — |
+| 5 | Epic — boundary across slices | done | — |
+| 6 | Verification standards owned in our own skill | done | 4 |
+| 7 | NestJS profile at parity | not started | 3 |
+| 8 | Visual design layer | not started | — |
+| 9 | Backlog and Definition of Ready | not started | 5 |
 
 ## Open questions for the requester
 
