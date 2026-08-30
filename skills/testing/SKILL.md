@@ -29,7 +29,7 @@ work — it was never a rule against testing.
 |---|---|---|
 | Task inside an SDD change, Strict TDD active | **Required, test first** | `sdd-apply/strict-tdd.md` |
 | Task inside an SDD change, Strict TDD off | Required for every acceptance criterion | This file |
-| Bug fix — any context | **Required**: a failing test that reproduces the bug, before the fix | This file |
+| Bug fix — any context | **Required**: a failing test that reproduces the bug, before the fix | `../diagnosis/` finds it, this file places it |
 | Refactor of existing code | **Required**: approval tests before touching production code | `sdd-apply/strict-tdd.md` |
 | Observable UI behavior no test can see | **Required**: a browser loop closed against the stated criterion | This file, *Closing the loop in a browser* |
 | Ad-hoc edit, spike, exploration, throwaway | Only when explicitly requested | This file |

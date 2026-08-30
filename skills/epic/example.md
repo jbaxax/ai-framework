@@ -67,6 +67,7 @@ installs into an existing project without reaching the people who share it.
 | 10 | Machine configuration versioned at its source | done | 3 |
 | 11 | Skills reach every agent that executes | done | 3 |
 | 12 | Seam, tautology and slice rhythm absorbed into testing | done | 1 |
+| 13 | Diagnosis loop for maintenance work | done | 2, 4 |
 
 ## Open questions for the requester
 

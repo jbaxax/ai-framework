@@ -129,6 +129,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `skills/auth/` | Sessions, cookies, token storage, what never to do |
 | `skills/api-client/` | HTTP clients, interceptors, pagination, verifying backend docs |
 | `skills/testing/` | Vitest, what to test first, what not to test |
+| `skills/diagnosis/` | Finding a bug before theorising about it, and proving it is gone |
 | `templates/feature-template/` | A complete React feature, as reference |
 | `templates/feature-template-angular/` | The same feature in Angular v22 |
 | `templates/contract-verification/` | Executable check that a backend you do not own still matches its documentation |
