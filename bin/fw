@@ -51,9 +51,24 @@ detect_stacks() {
 
 detect_sharing() {
   git rev-parse --git-dir >/dev/null 2>&1 || { echo personal; return; }
+
   local authors
   authors=$(git log --format='%ae' 2>/dev/null | sort -u | wc -l | tr -d ' ')
-  if [ "$authors" -gt 1 ]; then echo shared; else echo personal; fi
+  [ "$authors" -gt 1 ] && { echo shared; return; }
+
+  # One author is not proof the repository is yours. A company repo you are the
+  # only committer on still belongs to the company. Compare the identity that
+  # wrote the history against the one git is configured with: a mismatch means
+  # this history was written as somebody else — a work account — and personal
+  # files must not be committed into it.
+  local hist_author cfg_author
+  hist_author=$(git log -1 --format='%ae' 2>/dev/null)
+  cfg_author=$(git config user.email 2>/dev/null)
+  if [ -n "$hist_author" ] && [ -n "$cfg_author" ] && [ "$hist_author" != "$cfg_author" ]; then
+    echo shared; return
+  fi
+
+  echo personal
 }
 
 link_skills_into() {
@@ -169,11 +184,23 @@ cmd_install() {
     exit 1
   fi
 
+  if [ -d "$target_docs" ] && [ -n "$(ls -A "$target_docs" 2>/dev/null)" ] \
+     && [ ! -f "$target_docs/.fw-owned" ]; then
+    head1 "Aborted"
+    bad "$target_docs/ already exists and was not written by this framework"
+    note "holds: $(ls -1 "$target_docs" | head -3 | tr '\n' ' ')"
+    note "nothing was written — merging into it would mix our files with theirs,"
+    note "and any later cleanup would take theirs with ours"
+    note "install privately instead:  fw install --shared"
+    exit 1
+  fi
+
   head1 "Writing"
   cp "$FW_ROOT/CLAUDE.md" "$target_claude"
   ok "$target_claude"
 
   mkdir -p "$target_docs"
+  : > "$target_docs/.fw-owned"
   if [ "${stacks[*]}" = "astro" ]; then
     for doc in "$FW_ROOT"/docs/*.md; do
       case "$(basename "$doc")" in clean-architecture.md|angular.md) continue ;; esac

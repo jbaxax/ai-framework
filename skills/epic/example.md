@@ -44,6 +44,7 @@ installs into an existing project without reaching the people who share it.
 |---|---|---|
 | Rules and skills are symlinked into the user scope, never copied | A copy is stale the day the source changes, and a copy inside a repo is visible to everyone in it | Every install slice |
 | Templates are copied, not linked | Their job is to diverge into project code | Every template slice |
+| When ownership is uncertain, install privately | A wrong "shared" costs nothing — the files stay local. A wrong "personal" puts them in a company repository, which is the one outcome this framework exists to prevent | Sharing detection |
 | Anything the framework puts in someone else's repo lives under `.fw/` | One namespace covered by one global ignore rule | Contracts, docs, future tooling |
 | Evidence scales to the cheapest proof that can catch the failure | A gate that demands the maximum costs more than the change budgeted, and gets switched off | Testing, verification, E2E |
 | Evidence is produced by a command, never asserted in prose | A summary of a run is not a run | Verification, CI |
@@ -74,6 +75,7 @@ installs into an existing project without reaching the people who share it.
 | 14 | Codebase graph for impact analysis | done | 13 |
 | 15 | Grilling: rounds, entry cases, closing axes | done | 9 |
 | 16 | Astro profile — a content site is not an app | done | 3 |
+| 17 | Sharing detection safe by default, docs/ never merged | done | 3 |
 
 ## Open questions for the requester
 
