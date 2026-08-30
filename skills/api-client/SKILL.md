@@ -82,6 +82,37 @@ and drifts from the running code.
 A Zod parse at the boundary turns this class of bug into an immediate, precise
 error instead of an `undefined` surfacing several layers away in the UI.
 
+### Make the check executable, not a habit
+
+Steps 2 and 5 above describe a discipline. A discipline is not a mechanism — it
+holds until the afternoon you are in a hurry. When the backend is owned by
+someone else, install the runner instead:
+
+```bash
+cp <framework>/templates/contract-verification/{contract.ts,verify.ts} contracts/
+bun run contracts/verify.ts
+```
+
+It encodes their documentation as a schema, calls the real endpoint, and exits
+non-zero when the two disagree. Three checks, reported separately: the response
+matches the documented shape, no undocumented fields appeared, and their field
+names did not leak past `infrastructure/`.
+
+- **Write the `documented` schema from their doc, not from the response.** A
+  schema built from what arrived can never detect that what arrived was wrong.
+  Reality still wins for the implementation — the schema exists to make the
+  disagreement visible, not to decide it.
+- Reuse the real mapping function from `infrastructure/` in the contract's
+  `map`. A copy verifies the copy.
+- On failure it writes `contract-drift.md`. **Send that file to the backend
+  author** rather than describing the problem in your own words: it carries the
+  failing field paths, the promised type, what actually arrived, the raw
+  response, and a timestamp. A reported mismatch that cannot be argued with is
+  the point.
+
+See `templates/contract-verification/README.md` for the drift classes it covers
+and how to rehearse them against the stub.
+
 ## Pagination
 
 Backends return the same envelope across endpoints. Type it **once** as a
