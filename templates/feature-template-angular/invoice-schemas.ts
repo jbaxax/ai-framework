@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Invoice, InvoiceLine, InvoiceStatus } from './invoice.model';
+import type { Invoice, InvoiceLine, InvoiceStatus, NewInvoice } from './invoice.model';
 
 const invoiceLineDtoSchema = z.object({
   producto_id: z.string(),
@@ -53,11 +53,19 @@ export function toDomainInvoice(dto: InvoiceDto): Invoice {
   };
 }
 
-export function toApiPayload(input: {
-  customerId: string;
-  series: string;
-  lines: readonly InvoiceLine[];
-}) {
+export type NewInvoicePayload = {
+  readonly cliente_id: string;
+  readonly serie: string;
+  readonly items: readonly {
+    readonly producto_id: string;
+    readonly descripcion: string;
+    readonly cantidad: number;
+    readonly precio_unitario: number;
+    readonly tasa_descuento: number;
+  }[];
+};
+
+export function toApiPayload(input: NewInvoice): NewInvoicePayload {
   return {
     cliente_id: input.customerId,
     serie: input.series,
