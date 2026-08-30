@@ -141,6 +141,7 @@ information that does not survive a week.
 
 - `../../CLAUDE.md` §1.1 — ask before assuming
 - `../epic/SKILL.md` — the boundary and standing decisions across several slices
-- `../testing/SKILL.md` — criteria become tests only when tests are requested
+- `../testing/SKILL.md` — an acceptance criterion **is** a test request; Mode Resolution decides what proves it
+- `../grilling/SKILL.md` — settles the decisions this file turns into criteria; run it first when the request is not yet shaped
 - `../api-client/SKILL.md` — verifying a backend `.md` against the real response
 - EARS: Mavin et al., <https://alistairmavin.com/ears/>

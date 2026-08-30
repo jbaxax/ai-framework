@@ -54,7 +54,7 @@ Three buckets. An item lives in exactly one.
 |---|---|---|
 | Ready | Passes the Definition of Ready. Can be finished without asking anyone | You start it |
 | Blocked | Cannot finish without an answer that is not yours to give | The answer arrives |
-| Not ready | No criteria yet, or gaps not identified | Run `../requirements/` on it |
+| Not ready | No criteria yet, or gaps not identified | Run `../grilling/` if the decisions are unsettled, then `../requirements/` |
 
 **Blocked is not low priority.** It may be the most important item on the list.
 It is simply not startable, and mixing the two axes is what produces a sorted

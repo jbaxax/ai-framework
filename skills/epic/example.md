@@ -71,6 +71,7 @@ installs into an existing project without reaching the people who share it.
 | 12 | Seam, tautology and slice rhythm absorbed into testing | done | 1 |
 | 13 | Diagnosis loop for maintenance work | done | 2, 4 |
 | 14 | Codebase graph for impact analysis | done | 13 |
+| 15 | Grilling: rounds, entry cases, closing axes | done | 9 |
 
 ## Open questions for the requester
 
