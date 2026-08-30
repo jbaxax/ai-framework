@@ -117,6 +117,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `docs/stack-defaults.md` | The stack, and why each default was chosen |
 | `skills/requirements/` | Turning a chat message or user story into testable criteria |
 | `skills/epic/` | The boundary and standing decisions that span several slices |
+| `skills/backlog/` | What can be started now, and the Definition of Ready that decides it |
 | `skills/verification-standards/` | What counts as proof that a change is done |
 | `skills/mentor/` | When teaching happens during the work, and what it must contain |
 | `skills/auth/` | Sessions, cookies, token storage, what never to do |

@@ -32,8 +32,8 @@ installs into an existing project without reaching the people who share it.
 
 - Whether the browser loop should be driven by a committed helper or ad hoc —
   blocks the E2E slice
-- Whether the backlog and its ordering rule belong in this framework or in a
-  separate place — blocks nothing, but the list currently lives in nobody's file
+- Whether `~/.claude/CLAUDE.md` and `settings.json` should be versioned too —
+  they are ours and currently unbacked; blocks the two-machine install guide
 
 ## Standing decisions
 
@@ -60,7 +60,7 @@ installs into an existing project without reaching the people who share it.
 | 6 | Verification standards owned in our own skill | done | 4 |
 | 7 | NestJS profile at parity | not started | 3 |
 | 8 | Visual design layer | not started | — |
-| 9 | Backlog and Definition of Ready | not started | 5 |
+| 9 | Backlog and Definition of Ready | done | 5 |
 
 ## Open questions for the requester
 

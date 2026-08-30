@@ -274,7 +274,105 @@ cmd_evidence() {
   [ "$EV_FAILED" -eq 0 ] || exit 1
 }
 
+BACKLOG_FILE="${FW_BACKLOG:-$HOME/backlog.md}"
+STALE_DAYS="${FW_STALE_DAYS:-3}"
+
+cmd_backlog() {
+  if [ "${1:-}" = "--init" ]; then
+    if [ -f "$BACKLOG_FILE" ]; then
+      bad "$BACKLOG_FILE already exists — left untouched"
+      exit 1
+    fi
+    cat > "$BACKLOG_FILE" <<'SKELETON'
+# Backlog
+
+## Ready
+
+## Blocked
+
+## Not ready
+SKELETON
+    head1 "Created $BACKLOG_FILE"
+    note "Ready     — passes the Definition of Ready, can be finished without asking anyone"
+    note "Blocked   — waiting on an answer. Record the question and (asked YYYY-MM-DD)"
+    note "Not ready — no criteria yet. Run the requirements skill on it first"
+    return
+  fi
+
+  if [ ! -f "$BACKLOG_FILE" ]; then
+    head1 "No backlog at $BACKLOG_FILE"
+    note "create it with:  fw backlog --init"
+    note "see skills/backlog/SKILL.md for what belongs in each section"
+    exit 1
+  fi
+
+  local section="" ready=0 blocked=0 notready=0 stale=0
+  local today; today=$(date +%s)
+
+  head1 "Ready to start"
+  while IFS= read -r line; do
+    case "$line" in
+      '## Ready'*)     section=ready;     continue ;;
+      '## Blocked'*)   section=blocked;   continue ;;
+      '## Not ready'*) section=notready;  continue ;;
+      '#'*)            section="";        continue ;;
+    esac
+    case "$line" in "- "*) ;; *) continue ;; esac
+
+    local text="${line#- }"
+    case "$section" in
+      ready)    ok "$text"; ready=$((ready+1)) ;;
+      notready) notready=$((notready+1)) ;;
+      blocked)
+        blocked=$((blocked+1))
+        local asked days
+        asked=$(printf '%s' "$text" | grep -oE 'asked [0-9]{4}-[0-9]{2}-[0-9]{2}' | tail -1 | cut -d' ' -f2 || true)
+        if [ -n "$asked" ]; then
+          days=$(( (today - $(date -d "$asked" +%s 2>/dev/null || echo "$today")) / 86400 ))
+        else
+          days=""
+        fi
+        BLOCKED_LINES+=("$days|$text")
+        if [ -n "$days" ] && [ "$days" -ge "$STALE_DAYS" ]; then stale=$((stale+1)); fi
+        ;;
+    esac
+  done < "$BACKLOG_FILE"
+
+  if [ $((ready + blocked + notready)) -eq 0 ]; then
+    note "the backlog is empty"
+  elif [ "$ready" -eq 0 ]; then
+    warn "nothing is ready — every item is blocked or missing criteria"
+  fi
+
+  head1 "Blocked, longest wait first"
+  if [ "${#BLOCKED_LINES[@]}" -eq 0 ]; then
+    note "nothing blocked"
+  else
+    printf '%s\n' "${BLOCKED_LINES[@]}" | sort -t'|' -k1,1nr | while IFS='|' read -r days text; do
+      if [ -z "$days" ]; then
+        warn "no date — $text"
+      elif [ "$days" -ge "$STALE_DAYS" ]; then
+        bad "${days}d — $text"
+      else
+        note "${days}d — $text"
+      fi
+    done
+  fi
+
+  head1 "Summary"
+  note "ready $ready · blocked $blocked · not ready $notready"
+  if [ "$stale" -gt 0 ]; then
+    bad "$stale question(s) unanswered for $STALE_DAYS+ days — follow up on the oldest first"
+  fi
+  if [ "$notready" -gt 0 ]; then
+    note "$notready item(s) need criteria before they can be judged — see skills/requirements/"
+  fi
+}
+
+BLOCKED_LINES=()
+
 case "${1:-}" in
+  backlog)  shift; cmd_backlog "$@" ;;
   link)     shift; cmd_link "$@" ;;
   install)  shift; cmd_install "$@" ;;
   doctor)   shift; cmd_doctor "$@" ;;
@@ -291,6 +389,10 @@ fw — install this framework into a project
   fw doctor            verify the install and that nothing personal leaks into git
   fw evidence          run typecheck, tests and contracts; print a pasteable
                        evidence table. Exits non-zero if any check fails
+  fw backlog           what is ready to start, and how long each blocked item
+                       has been waiting on an answer
+                       FW_BACKLOG=<file>   default ~/backlog.md
+                       FW_STALE_DAYS=<n>   default 3
 
 Framework root: $FW_ROOT
 EOF
