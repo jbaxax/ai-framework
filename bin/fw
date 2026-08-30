@@ -185,10 +185,100 @@ cmd_doctor() {
   fi
 }
 
+pkg_script() {
+  [ -f package.json ] || return 1
+  grep -qE "\"$1\"[[:space:]]*:" <(sed -n '/"scripts"/,/}/p' package.json)
+}
+
+runner() {
+  if [ -f bun.lock ] || [ -f bun.lockb ]; then echo bun
+  elif [ -f pnpm-lock.yaml ]; then echo pnpm
+  else echo npm; fi
+}
+
+EV_ROWS=()
+EV_FAILED=0
+
+summarize() {
+  local out="$1" rc="$2" plain line count
+  plain="$(sed 's/\x1b\[[0-9;]*m//g' "$out")"
+
+  line=$(printf '%s\n' "$plain" | grep -E '^[[:space:]]*Tests[[:space:]]+[0-9]' | tail -1 || true)
+  if [ -n "$line" ]; then
+    printf '%s' "$(printf '%s' "$line" \
+      | sed 's/^[[:space:]]*Tests[[:space:]]*//; s/[[:space:]]*|[[:space:]]*/, /g' \
+      | tr -s ' ')"
+    return
+  fi
+
+  count=$(printf '%s\n' "$plain" | grep -cE 'error TS[0-9]+' || true)
+  if [ "$count" -gt 0 ]; then printf '%s type error(s)' "$count"; return; fi
+
+  count=$(printf '%s\n' "$plain" | grep -cE '^(DRIFT|UNREACHABLE)[[:space:]]' || true)
+  if [ "$count" -gt 0 ]; then printf '%s contract(s) drifted' "$count"; return; fi
+
+  if [ "$rc" -eq 0 ]; then printf 'clean'; else printf 'see output'; fi
+}
+
+run_check() {
+  local label="$1" command="$2"
+  local out rc
+  out=$(mktemp)
+  set +e
+  eval "$command" >"$out" 2>&1
+  rc=$?
+  set -e
+
+  local summary; summary="$(summarize "$out" "$rc")"
+
+  if [ "$rc" -ne 0 ]; then EV_FAILED=1; fi
+  EV_ROWS+=("| $label | \`$command\` | $rc | $summary |")
+
+  if [ "$rc" -eq 0 ]; then ok "$label — exit 0 — $summary"
+  else
+    bad "$label — exit $rc"
+    sed 's/^/      /' "$out" | tail -12
+  fi
+  rm -f "$out"
+}
+
+cmd_evidence() {
+  local rt; rt="$(runner)"
+  head1 "Collecting evidence in $(pwd)"
+
+  if [ ! -f package.json ]; then bad "no package.json here"; exit 1; fi
+
+  if pkg_script typecheck; then run_check "typecheck" "$rt run typecheck"
+  elif [ -f tsconfig.json ]; then run_check "typecheck" "${rt}x tsc --noEmit"
+  else warn "no typecheck available"; fi
+
+  if pkg_script test; then run_check "tests" "$rt run test"
+  else warn "no test script in package.json"; fi
+
+  for path in .fw/contracts/verify.ts contracts/verify.ts; do
+    [ -f "$path" ] || continue
+    run_check "contracts" "$rt run $path"
+    break
+  done
+
+  local verdict; verdict=$([ "$EV_FAILED" -eq 0 ] && echo PASS || echo FAIL)
+
+  head1 "Paste this into the verification report"
+  printf '\n## Verification Evidence\n\n'
+  printf 'Collected: %s\n' "$(date -Iseconds)"
+  printf 'Commit: %s\n\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'not a git repository')"
+  printf '| Check | Command | Exit | Result |\n|---|---|---|---|\n'
+  if [ "${#EV_ROWS[@]}" -gt 0 ]; then printf '%s\n' "${EV_ROWS[@]}"; fi
+  printf '\n**Verdict: %s**\n\n' "$verdict"
+
+  [ "$EV_FAILED" -eq 0 ] || exit 1
+}
+
 case "${1:-}" in
-  link)    shift; cmd_link "$@" ;;
-  install) shift; cmd_install "$@" ;;
-  doctor)  shift; cmd_doctor "$@" ;;
+  link)     shift; cmd_link "$@" ;;
+  install)  shift; cmd_install "$@" ;;
+  doctor)   shift; cmd_doctor "$@" ;;
+  evidence) shift; cmd_evidence "$@" ;;
   *)
     cat <<EOF
 fw — install this framework into a project
@@ -199,6 +289,8 @@ fw — install this framework into a project
     --personal         force normal install
     --dry-run          show the plan, write nothing
   fw doctor            verify the install and that nothing personal leaks into git
+  fw evidence          run typecheck, tests and contracts; print a pasteable
+                       evidence table. Exits non-zero if any check fails
 
 Framework root: $FW_ROOT
 EOF

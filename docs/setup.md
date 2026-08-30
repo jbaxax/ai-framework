@@ -90,7 +90,25 @@ Then `fw install`, and start with the requirement — not the code. See
 The framework applies to new code first. Read "Existing projects" in `CLAUDE.md`
 before restructuring anything that already works.
 
-## Verifying
+## Proving a change
+
+```bash
+fw evidence
+```
+
+Runs the project's typecheck, tests, and contract checks, then prints a table of
+each command with its exit code and result, ready to paste into a verification
+report. It exits non-zero if any check fails.
+
+The point is that the evidence is **produced**, not asserted. A report saying
+"tests pass" is a claim about a run; the table is the run. `CLAUDE.md` §6 asks
+for the table for exactly that reason.
+
+Which evidence a given criterion needs is decided by the Evidence Gate in
+`../skills/testing/SKILL.md` — the cheapest proof that could actually catch that
+failure, never the most expensive available.
+
+## Verifying the install
 
 ```bash
 fw doctor
