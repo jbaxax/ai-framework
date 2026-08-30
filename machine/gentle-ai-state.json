@@ -1,0 +1,48 @@
+{
+  "installed_agents": [
+    "claude-code",
+    "opencode"
+  ],
+  "claude_phase_assignments": {
+    "default": {
+      "model": "sonnet"
+    },
+    "jd-fix-agent": {
+      "model": "sonnet"
+    },
+    "jd-judge-a": {
+      "model": "sonnet"
+    },
+    "jd-judge-b": {
+      "model": "sonnet"
+    },
+    "sdd-apply": {
+      "model": "sonnet"
+    },
+    "sdd-archive": {
+      "model": "haiku"
+    },
+    "sdd-design": {
+      "model": "opus"
+    },
+    "sdd-explore": {
+      "model": "sonnet"
+    },
+    "sdd-onboard": {
+      "model": "haiku"
+    },
+    "sdd-propose": {
+      "model": "opus"
+    },
+    "sdd-spec": {
+      "model": "sonnet"
+    },
+    "sdd-tasks": {
+      "model": "sonnet"
+    },
+    "sdd-verify": {
+      "model": "sonnet"
+    }
+  },
+  "persona": "neutral"
+}

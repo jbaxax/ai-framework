@@ -32,8 +32,8 @@ installs into an existing project without reaching the people who share it.
 
 - Whether the browser loop should be driven by a committed helper or ad hoc —
   blocks the E2E slice
-- Whether `~/.claude/CLAUDE.md` and `settings.json` should be versioned too —
-  they are ours and currently unbacked; blocks the two-machine install guide
+- Whether the 528-line generated `CLAUDE.md` is worth raising with the tool's
+  author — measured, but the lever is not ours
 
 ## Standing decisions
 
@@ -47,6 +47,7 @@ installs into an existing project without reaching the people who share it.
 | The installer has no runtime dependency | It may run on a machine without bun | `bin/fw` |
 | Do not fight a framework's imposed structure; map the dependency rule onto it | Already settled once for Angular: the rule lives in the imports, not the folder names | The Nest slice |
 | Never edit a file belonging to another author; own the standard in our own skill instead | A patched vendor file is overwritten silently on reinstall, has no history, and cannot be told apart from the author's own text | Anything that would tighten an installed tool's behaviour |
+| Version the source a tool reads, never the output it writes | Generated output regenerates differently on the next sync, with no conflict and no warning. Here the source is 43 lines and the output is 528 | Machine configuration, agent configs |
 
 ## Slices
 
@@ -61,6 +62,7 @@ installs into an existing project without reaching the people who share it.
 | 7 | NestJS profile at parity | not started | 3 |
 | 8 | Visual design layer | not started | — |
 | 9 | Backlog and Definition of Ready | done | 5 |
+| 10 | Machine configuration versioned at its source | done | 3 |
 
 ## Open questions for the requester
 

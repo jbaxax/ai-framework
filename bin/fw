@@ -146,6 +146,20 @@ cmd_install() {
   cmd_doctor
 }
 
+check_drift() {
+  local live="$1" tracked="$2" name; name="$(basename "$live")"
+
+  if [ ! -f "$live" ]; then warn "$name not on this machine"; return; fi
+  if [ ! -f "$tracked" ]; then warn "$name not tracked — copy it into machine/"; return; fi
+
+  if diff -q "$live" "$tracked" >/dev/null 2>&1; then
+    ok "$name matches the tracked copy"
+  else
+    warn "$name has drifted from machine/$(basename "$tracked")"
+    note "refresh with: cp $live $tracked"
+  fi
+}
+
 cmd_doctor() {
   head1 "Checking install"
 
@@ -171,6 +185,9 @@ cmd_doctor() {
   else
     bad "global gitignore missing entries — run 'fw link'"
   fi
+
+  check_drift "$HOME/.gentle-ai/state.json" "$FW_ROOT/machine/gentle-ai-state.json"
+  check_drift "$HOME/.claude/settings.json" "$FW_ROOT/machine/claude-settings.json"
 
   if git rev-parse --git-dir >/dev/null 2>&1; then
     local leaked

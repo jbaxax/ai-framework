@@ -106,7 +106,8 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 
 | Path | Purpose |
 |---|---|
-| `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence` |
+| `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence`, `backlog` |
+| `machine/` | The two config files that define this setup, and why `CLAUDE.md` is not one of them |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `rules/angular.md` | Path-scoped rule — copy to `.claude/rules/` in Angular projects |
 | `rules/backend.md` | Path-scoped rule — NestJS/Prisma, full-stack projects only |
