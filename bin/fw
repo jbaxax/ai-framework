@@ -93,7 +93,7 @@ cmd_link() {
 
   head1 "Global gitignore"
   mkdir -p "$(dirname "$GIT_IGNORE_GLOBAL")"
-  local patterns=("CLAUDE.local.md" ".claude/settings.local.json" ".atl/" ".fw/" "contract-drift.md")
+  local patterns=("CLAUDE.local.md" ".claude/settings.local.json" ".atl/" ".fw/" "contract-drift.md" "graphify-out/")
   touch "$GIT_IGNORE_GLOBAL"
   for pattern in "${patterns[@]}"; do
     if grep -qxF "$pattern" "$GIT_IGNORE_GLOBAL"; then

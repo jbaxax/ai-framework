@@ -102,6 +102,31 @@ reproduces it, a redacted capture, or permission to instrument. **Do not proceed
 to hypothesise.** Reporting that you cannot reproduce it is a real answer; a
 confident theory with no loop is not.
 
+### Narrowing a codebase you did not write
+
+Before reading files to find the blast radius, ask the graph. If
+`graphify-out/graph.json` exists, `graphify affected "<file or symbol>"` returns
+the real dependents from the AST, with file and line.
+
+Measured on a 2,874-file React codebase: extraction took 13 seconds, cost **zero
+tokens** (tree-sitter, no LLM), and `affected` was **more accurate than grep** —
+grep matched `items.service` inside `income-items.service` and reported two
+dependents that do not exist; the graph did not.
+
+| Use it for | Do not use it for |
+|---|---|
+| `affected "X"` — what breaks if X changes | Answering "how does X work" |
+| `explain "X"` — callers and definition, with lines | Replacing reading the file |
+| `god-nodes` — what is load-bearing before touching it | Anything needing the code's actual logic |
+
+The natural-language `query` was measured returning 33 of 2,929 nodes for
+~1,022 tokens, when reading the two files that actually held the answer cost
+~813. **Use the graph to decide which files to open, then open them.** A node
+list is a map, not an explanation.
+
+Build with `graphify update <path>` — free and incremental. Never let a graph go
+stale and be trusted; re-run it before relying on the answer.
+
 ## Phase 2 — Reproduce, then minimise
 
 Run the loop and watch it go red.

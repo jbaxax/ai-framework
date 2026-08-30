@@ -32,6 +32,8 @@ installs into an existing project without reaching the people who share it.
 
 - Whether the browser loop should be driven by a committed helper or ad hoc —
   blocks the E2E slice
+- Whether graphify's 10.3k-token skill earns its place on a maintenance task, or
+  should be invoked only through the CLI it installs
 - Whether the 528-line generated `CLAUDE.md` is worth raising with the tool's
   author — measured, but the lever is not ours
 
@@ -68,6 +70,7 @@ installs into an existing project without reaching the people who share it.
 | 11 | Skills reach every agent that executes | done | 3 |
 | 12 | Seam, tautology and slice rhythm absorbed into testing | done | 1 |
 | 13 | Diagnosis loop for maintenance work | done | 2, 4 |
+| 14 | Codebase graph for impact analysis | done | 13 |
 
 ## Open questions for the requester
 
