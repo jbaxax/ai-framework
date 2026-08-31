@@ -76,6 +76,7 @@ installs into an existing project without reaching the people who share it.
 | 15 | Grilling: rounds, entry cases, closing axes | done | 9 |
 | 16 | Astro profile — a content site is not an app | done | 3 |
 | 17 | Sharing detection safe by default, docs/ never merged | done | 3 |
+| 18 | Docs installed by stack relevance, and what is left out is said | done | 16 |
 
 ## Open questions for the requester
 

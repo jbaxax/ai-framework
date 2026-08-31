@@ -201,17 +201,24 @@ cmd_install() {
 
   mkdir -p "$target_docs"
   : > "$target_docs/.fw-owned"
-  if [ "${stacks[*]}" = "astro" ]; then
-    for doc in "$FW_ROOT"/docs/*.md; do
-      case "$(basename "$doc")" in clean-architecture.md|angular.md) continue ;; esac
-      cp "$doc" "$target_docs"/
-    done
-    ok "$target_docs/ ($(ls -1 "$target_docs"/*.md | wc -l | tr -d ' ') files)"
-    note "content site: the layered architecture is not installed — it earns nothing here"
-    note "planning, testing and diagnosis skills are global and still apply"
-  else
-    cp "$FW_ROOT"/docs/*.md "$target_docs"/
-    ok "$target_docs/ ($(ls -1 "$FW_ROOT"/docs/*.md | wc -l | tr -d ' ') files)"
+  # A document that does not apply to the detected stack is not harmless: it
+  # competes with the one that does. angular.md says so in its own second line.
+  local skipped=()
+  for doc in "$FW_ROOT"/docs/*.md; do
+    local name; name="$(basename "$doc")"
+    case "$name" in
+      angular.md)
+        case " ${stacks[*]} " in *" angular "*) ;; *) skipped+=("$name"); continue ;; esac ;;
+      clean-architecture.md)
+        [ "${stacks[*]}" = "astro" ] && { skipped+=("$name"); continue; } ;;
+    esac
+    cp "$doc" "$target_docs"/
+  done
+
+  ok "$target_docs/ ($(ls -1 "$target_docs"/*.md 2>/dev/null | wc -l | tr -d ' ') files)"
+  if [ "${#skipped[@]}" -gt 0 ]; then
+    note "not installed, does not apply here: ${skipped[*]}"
+    [ "${stacks[*]}" = "astro" ] && note "a content site has no domain to protect; the planning, testing and diagnosis skills are global and still apply"
   fi
 
   cmd_doctor
