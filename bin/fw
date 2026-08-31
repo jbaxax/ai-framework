@@ -5,6 +5,14 @@ FW_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
 
+# Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
+# set, even with Developer Mode on, because MSYS only calls the native
+# CreateSymbolicLink API in this mode. Set it here so `fw link` works from any
+# shell profile that invokes this script, not just ones that export it.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) export MSYS="${MSYS:-winsymlinks:nativestrict}" ;;
+esac
+
 RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; DIM=$'\033[2m'; OFF=$'\033[0m'
 
 ok()   { printf '  %s✓%s %s\n' "$GREEN" "$OFF" "$1"; }
@@ -12,6 +20,17 @@ warn() { printf '  %s!%s %s\n' "$YELLOW" "$OFF" "$1"; }
 bad()  { printf '  %s✗%s %s\n' "$RED" "$OFF" "$1"; }
 note() { printf '    %s%s%s\n' "$DIM" "$1" "$OFF"; }
 head1(){ printf '\n%s\n' "$1"; }
+
+link_or_warn() {
+  local src="$1" dst="$2" label="$3"
+  ln -sfn "$src" "$dst"
+  if [ -L "$dst" ]; then
+    ok "$label -> $src"
+  else
+    bad "$label -> $src (ln did not create a real symlink, got a copy instead)"
+    note "Windows needs Developer Mode on AND MSYS=winsymlinks:nativestrict for ln -s to work"
+  fi
+}
 
 has_dep() {
   [ -f package.json ] || return 1
@@ -41,8 +60,7 @@ cmd_link() {
   for rule in "$FW_ROOT"/rules/*.md; do
     [ -e "$rule" ] || continue
     local name="fw-$(basename "$rule")"
-    ln -sfn "$rule" "$CLAUDE_HOME/rules/$name"
-    ok "rule  $name -> $rule"
+    link_or_warn "$rule" "$CLAUDE_HOME/rules/$name" "rule  $name"
   done
 
   for skill in "$FW_ROOT"/skills/*/; do
@@ -54,8 +72,7 @@ cmd_link() {
       note "resolve by hand: $target"
       continue
     fi
-    ln -sfn "${skill%/}" "$target"
-    ok "skill $name -> ${skill%/}"
+    link_or_warn "${skill%/}" "$target" "skill $name"
   done
 
   head1 "Global gitignore"
