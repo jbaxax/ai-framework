@@ -47,6 +47,7 @@ installs into an existing project without reaching the people who share it.
 | When ownership is uncertain, install privately | A wrong "shared" costs nothing — the files stay local. A wrong "personal" puts them in a company repository, which is the one outcome this framework exists to prevent | Sharing detection |
 | Anything the framework puts in someone else's repo lives under `.fw/` | One namespace covered by one global ignore rule | Contracts, docs, future tooling |
 | Evidence scales to the cheapest proof that can catch the failure | A gate that demands the maximum costs more than the change budgeted, and gets switched off | Testing, verification, E2E |
+| A command's exit code is not evidence that it did the thing; verify the outcome | Three instances in two days: `ln -s` returned zero while writing a copy, `fw doctor` exited zero while printing failures, and a warm-up answered `warmed: true` without warming anything. Each looked healthy until something else broke | Every check the framework performs |
 | Evidence is produced by a command, never asserted in prose | A summary of a run is not a run | Verification, CI |
 | The installer has no runtime dependency | It may run on a machine without bun | `bin/fw` |
 | Do not fight a framework's imposed structure; map the dependency rule onto it | Already settled once for Angular: the rule lives in the imports, not the folder names | The Nest slice |
@@ -77,6 +78,7 @@ installs into an existing project without reaching the people who share it.
 | 16 | Astro profile — a content site is not an app | done | 3 |
 | 17 | Sharing detection safe by default, docs/ never merged | done | 3 |
 | 18 | Docs installed by stack relevance, and what is left out is said | done | 16 |
+| 19 | Real symlinks verified on Windows Git Bash | done | 3 |
 
 ## Open questions for the requester
 
