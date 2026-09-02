@@ -7,6 +7,9 @@ OPENCODE_HOME="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
 GEMINI_HOME="${GEMINI_CONFIG_DIR:-$HOME/.gemini}"
 GEMINI_CLI_HOME="${ANTIGRAVITY_CONFIG_DIR:-$GEMINI_HOME/antigravity-cli}"
 GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
+# Rules that belong to one project. fw reads this file and never writes it,
+# which is what makes a reinstall unable to destroy it.
+PROJECT_RULES="PROJECT-RULES.md"
 
 # Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
 # set, even with Developer Mode on, because MSYS only calls the native
@@ -186,6 +189,9 @@ cmd_install() {
   note "$target_gemini          <- framework rules for Gemini / Antigravity"
   note "$target_docs/           <- framework docs"
   note "rules and skills        <- already global, nothing copied here"
+  if [ -f "$PROJECT_RULES" ]; then
+    note "$PROJECT_RULES      -> appended to the three above, never overwritten"
+  fi
 
   # Every file we are about to write gets the same ownership check. AGENTS.md is
   # a cross-tool convention and GEMINI.md is Gemini's own context file, so both
@@ -220,12 +226,31 @@ cmd_install() {
   if [ "$dry" = 1 ]; then head1 "Dry run — nothing written."; return; fi
 
   head1 "Writing"
-  cp "$FW_ROOT/CLAUDE.md" "$target_claude"
+  # The three files below are disposable: each is rebuilt from the framework
+  # rules plus $PROJECT_RULES, and neither source is one of them. Project rules
+  # survive a reinstall because no code path here writes the file they live in,
+  # not because a check happened to spare them.
+  compose_rules() {
+    local out="$1"
+    cat "$FW_ROOT/CLAUDE.md" > "$out"
+    [ -f "$PROJECT_RULES" ] || return 0
+    printf '\n---\n\n' >> "$out"
+    cat "$PROJECT_RULES" >> "$out"
+  }
+
+  compose_rules "$target_claude"
   ok "$target_claude"
-  cp "$FW_ROOT/CLAUDE.md" "$target_agents"
+  compose_rules "$target_agents"
   ok "$target_agents (OpenCode / Agents)"
-  cp "$FW_ROOT/CLAUDE.md" "$target_gemini"
+  compose_rules "$target_gemini"
   ok "$target_gemini (Gemini / Antigravity)"
+
+  if [ -f "$PROJECT_RULES" ]; then
+    ok "$PROJECT_RULES appended to all three (fw never writes this file)"
+  else
+    note "no $PROJECT_RULES here — put rules only this project has in one,"
+    note "and every reinstall will fold them back in"
+  fi
 
   mkdir -p "$target_docs"
   : > "$target_docs/.fw-owned"
@@ -1017,7 +1042,9 @@ case "${1:-}" in
 fw — install this framework into a project
 
   fw link              once per machine: symlink rules and skills, set global gitignore
-  fw install           in a project: detect stack, install CLAUDE.md and docs
+  fw install           in a project: detect stack, write CLAUDE.md, AGENTS.md,
+                       GEMINI.md and docs. PROJECT-RULES.md, if present, is
+                       appended to all three and is never written by fw
     --shared           force private install (CLAUDE.local.md + .fw/docs)
     --personal         force normal install
     --dry-run          show the plan, write nothing
