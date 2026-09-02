@@ -86,6 +86,25 @@ When a request arrives that sits in **Not in**, that is not scope creep to
 absorb; it is a new epic or a new quote, and the list is what lets you say so
 without it becoming an argument about memory.
 
+## Where it lives
+
+`.fw/product/epics/<slug>.md`, next to the stories it holds. `.fw/` is covered by
+the global gitignore, so an epic never lands in a client's repository history.
+
+```bash
+fw product init                 # once per project
+fw product epic checkout        # creates the file with this shape
+fw product hu checkout "Split payment between two cards"
+```
+
+Stories are **flat**, in `.fw/product/criteria/`, not nested inside a per-epic
+directory. The `## Slices` table above is the single source of truth for what
+belongs to this epic. Nesting would record that relationship a second time in the
+directory tree, and the two copies drift the first time a slice is renamed — the
+table gets edited, the folder keeps the old name and quietly goes stale.
+
+`fw product hu` appends the slice row for you. Do not maintain the list by hand.
+
 ## Execution Steps
 
 1. **Check whether one exists** before proposing a change. If it does, read it
@@ -145,6 +164,7 @@ Report, in this order:
 ## References
 
 - `example.md` — a real epic, filled in, as the reference for the shape
+- `../../docs/product-artifacts.md` — `fw product`, and why the layout is flat
 - `../requirements/SKILL.md` — the user story and the criteria that feed an epic
 - `../../docs/workflow.md` — where this sits in the lifecycle
 - `../../CLAUDE.md` §1.1 — an unstated boundary is a gap, never a default

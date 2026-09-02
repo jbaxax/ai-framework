@@ -74,7 +74,9 @@ the gap, and the shape exposes it.
 2. **Write the criteria** using the four patterns above. Aim for the happy path,
    the empty state, the failure, and the permission rule.
 3. **List the gaps** as direct questions, ordered by how much rework a wrong
-   guess would cost. This list is the deliverable to send back over chat.
+   guess would cost. Send this list back over chat — a question needs an answer
+   from a person, and a file cannot ask one. The *criteria* still get written to
+   disk; see **Where this lives** below.
 4. **Mark assumptions** you must make to proceed at all, each with its blast
    radius: *"Assuming the filter resets on reload — if it must persist, the state
    moves to the URL and the list component changes."*
@@ -121,6 +123,36 @@ explicitly instead of assuming it survived:
 Ask **one at a time** and pick the one whose wrong answer costs the most rework.
 A message with five questions gets one answer.
 
+## Where this lives
+
+A user story delivered only as a chat message is not delivered. It cannot be
+reread next week, diffed, linked from a criterion, or handed to the verifier that
+has to prove it. Chat is a transport, not a place.
+
+Write it to disk under `.fw/product/`, which is covered by the global gitignore —
+nothing here reaches the project's history:
+
+```bash
+fw product init                 # once per project
+fw product epic checkout        # the boundary across slices
+fw product hu checkout "Split payment between two cards"
+```
+
+That creates `.fw/product/criteria/checkout-01.md` with this file's Output
+Contract already laid out, and appends the slice row to the epic's table. Fill
+the file; do not paste the story into chat and move on.
+
+| Situation | Where it goes |
+|---|---|
+| Acceptance criteria, story, assumptions, evidence map | `.fw/product/criteria/<epic>-NN.md` |
+| Gaps, as questions for a person | Chat — they need an answer, not a file |
+| A decision that binds future slices | The epic's Standing decisions table |
+
+**This applies to maintenance as much as to new work.** On a new project the
+context is still in your head; on a codebase you inherited, that context is
+precisely what is missing, which is what makes writing it down worth more there,
+not less.
+
 ## Output Contract
 
 Report, in this order:
@@ -141,6 +173,7 @@ information that does not survive a week.
 
 - `../../CLAUDE.md` §1.1 — ask before assuming
 - `../epic/SKILL.md` — the boundary and standing decisions across several slices
+- `../../docs/product-artifacts.md` — `fw product`, and why the layout is flat
 - `../testing/SKILL.md` — an acceptance criterion **is** a test request; Mode Resolution decides what proves it
 - `../grilling/SKILL.md` — settles the decisions this file turns into criteria; run it first when the request is not yet shaped
 - `../api-client/SKILL.md` — verifying a backend `.md` against the real response

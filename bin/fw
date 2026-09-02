@@ -280,6 +280,16 @@ cmd_doctor() {
   check_drift "$HOME/.gentle-ai/state.json" "$FW_ROOT/machine/gentle-ai-state.json"
   check_drift "$HOME/.claude/settings.json" "$FW_ROOT/machine/claude-settings.json"
 
+  if [ -d .fw/product ]; then
+    if git rev-parse --git-dir >/dev/null 2>&1 && \
+       [ -n "$(git ls-files .fw 2>/dev/null)" ]; then
+      bad ".fw/ is TRACKED in this repository — product notes are in its history"
+      note "untrack them: git rm -r --cached .fw"
+    else
+      ok "product artifacts present and untracked"
+    fi
+  fi
+
   if git rev-parse --git-dir >/dev/null 2>&1; then
     local leaked
     leaked=$(git status --porcelain 2>/dev/null | grep -E 'CLAUDE\.local\.md|^\?\? \.fw/|^\?\? \.atl/' || true)
@@ -479,6 +489,473 @@ SKELETON
   fi
 }
 
+# ---------------------------------------------------------------------------
+# fw mutate
+#
+# A green suite proves the tests ran. It does not prove they watch anything.
+# This breaks the production code on purpose, one edit at a time, and requires
+# the suite to go red. A mutation that survives is a hole with a green check
+# over it — the most expensive kind, because you trust it.
+#
+# Same principle as `fw evidence`: verify the result, not the exit code.
+# ---------------------------------------------------------------------------
+
+MUT_ROWS=()
+MUT_KILLED=0
+MUT_SURVIVED=0
+MUT_ACTIVE_FILE=""
+MUT_ACTIVE_BAK=""
+
+# Restoring is not cleanup, it is the contract. A mutation left on disk after a
+# crash or a Ctrl-C is corrupted source in someone's working tree.
+mut_restore() {
+  if [ -n "$MUT_ACTIVE_FILE" ] && [ -f "$MUT_ACTIVE_BAK" ]; then
+    cp -f "$MUT_ACTIVE_BAK" "$MUT_ACTIVE_FILE"
+    rm -f "$MUT_ACTIVE_BAK"
+  fi
+  MUT_ACTIVE_FILE=""
+  MUT_ACTIVE_BAK=""
+}
+
+# from @@ to @@ label. Comparison operators require surrounding spaces so they
+# never fire inside a generic (Map<string, T>), an arrow (=>) or JSX.
+MUT_OPS=(
+  " && @@ || @@\`&&\` to \`||\`"
+  " || @@ && @@\`||\` to \`&&\`"
+  " === @@ !== @@\`===\` to \`!==\`"
+  " !== @@ === @@\`!==\` to \`===\`"
+  " >= @@ < @@\`>=\` to \`<\`"
+  " <= @@ > @@\`<=\` to \`>\`"
+  " > @@ < @@\`>\` to \`<\`"
+  " < @@ > @@\`<\` to \`>\`"
+  " + @@ - @@\`+\` to \`-\`"
+  "return true@@return false@@\`return true\` to \`return false\`"
+  "return false@@return true@@\`return false\` to \`return true\`"
+)
+
+mut_esc_pat()  { printf '%s' "$1" | sed 's/[][\\\/.*^$]/\\&/g'; }
+mut_esc_repl() { printf '%s' "$1" | sed 's/[\\\/&]/\\&/g'; }
+
+# A line that is a comment, an import or a type declaration carries no behavior,
+# so a mutation there proves nothing about the tests.
+mut_skip_line() {
+  printf '%s' "$1" | grep -qE '^[[:space:]]*(//|\*|/\*|import |export type |type |interface )' && return 0
+  return 1
+}
+
+mut_source_files() {
+  local with_test=() without_test=() f base dir
+  while IFS= read -r f; do
+    base="$(basename "$f")"; base="${base%.*}"
+    dir="$(dirname "$f")"
+    if compgen -G "$dir/$base.test.*" >/dev/null 2>&1 ||
+       compgen -G "$dir/$base.spec.*" >/dev/null 2>&1 ||
+       compgen -G "$dir/__tests__/$base.*" >/dev/null 2>&1; then
+      with_test+=("$f")
+    else
+      without_test+=("$f")
+    fi
+  done < <(
+    find . \
+      \( -path ./node_modules -o -path ./dist -o -path ./build -o -path ./.next \
+         -o -path ./coverage -o -path ./.git -o -path ./.fw \) -prune -o \
+      -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \) \
+      ! -name '*.test.*' ! -name '*.spec.*' ! -name '*.d.ts' ! -name '*.config.*' \
+      -print | sed 's|^\./||' | sort
+  )
+  # Files the suite claims to cover go first: that is where a survivor is news.
+  printf '%s\n' "${with_test[@]:-}" "${without_test[@]:-}" | grep -v '^$' || true
+}
+
+cmd_mutate() {
+  local max=10 test_cmd="" targets=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --max)      shift; max="${1:-10}" ;;
+      --test-cmd) shift; test_cmd="${1:-}" ;;
+      -*) bad "unknown flag: $1"; exit 2 ;;
+      *)  targets+=("$1") ;;
+    esac
+    shift
+  done
+
+  head1 "Mutating in $(pwd)"
+
+  if [ ! -f package.json ]; then bad "no package.json here"; exit 1; fi
+
+  local rt; rt="$(runner)"
+  if [ -z "$test_cmd" ]; then
+    if pkg_script test; then
+      test_cmd="$rt run test"
+    elif [ "$rt" = bun ]; then
+      test_cmd="bun test"
+    else
+      bad "no test script in package.json"
+      note "nothing to mutate against — a mutation needs a suite that can go red"
+      note "pass one explicitly:  fw mutate --test-cmd '<command>'"
+      exit 1
+    fi
+  fi
+  ok "package manager: $rt"
+  ok "test command: $test_cmd"
+
+  # Mutating a dirty file risks losing real work if this dies mid-run.
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+      bad "working tree is dirty — commit or stash first"
+      note "this rewrites source files in place and restores them; it will not"
+      note "gamble with uncommitted work"
+      exit 1
+    fi
+    ok "working tree clean"
+  else
+    warn "not a git repository — no safety net if this is interrupted"
+  fi
+
+  # A mutation score off a red baseline is meaningless: every mutant reads as
+  # killed by a failure that was already there.
+  head1 "Baseline"
+  local t0 t1 baseline_secs
+  t0=$(date +%s)
+  set +e
+  eval "$test_cmd" >/dev/null 2>&1
+  local base_rc=$?
+  set -e
+  t1=$(date +%s)
+  baseline_secs=$((t1 - t0))
+  if [ "$base_rc" -ne 0 ]; then
+    bad "suite is red before mutating (exit $base_rc)"
+    note "fix the suite first — against a red baseline every mutant looks killed"
+    exit 1
+  fi
+  ok "suite green in ${baseline_secs}s"
+
+  head1 "Targets"
+  if [ "${#targets[@]}" -eq 0 ]; then
+    mapfile -t targets < <(mut_source_files)
+  fi
+  if [ "${#targets[@]}" -eq 0 ] || [ -z "${targets[0]}" ]; then
+    bad "no source files found to mutate"
+    exit 1
+  fi
+  ok "${#targets[@]} candidate file(s), files with a colocated test first"
+
+  note "up to $max mutation(s), one full suite run each"
+  note "forecast: about $((max * (baseline_secs + 1)))s"
+
+  head1 "Mutants"
+  trap 'mut_restore' EXIT INT TERM
+
+  local done=0 f op from to label line content pat repl bak rc result
+  for f in "${targets[@]}"; do
+    [ "$done" -ge "$max" ] && break
+    [ -f "$f" ] || continue
+
+    for op in "${MUT_OPS[@]}"; do
+      [ "$done" -ge "$max" ] && break
+      from="${op%%@@*}"
+      to="${op#*@@}"; to="${to%%@@*}"
+      label="${op##*@@}"
+
+      line="$(grep -nF -- "$from" "$f" 2>/dev/null | head -1 | cut -d: -f1 || true)"
+      [ -n "$line" ] || continue
+      content="$(sed -n "${line}p" "$f")"
+      mut_skip_line "$content" && continue
+
+      bak="$(mktemp)"
+      cp -f "$f" "$bak"
+      MUT_ACTIVE_FILE="$f"; MUT_ACTIVE_BAK="$bak"
+
+      pat="$(mut_esc_pat "$from")"
+      repl="$(mut_esc_repl "$to")"
+      sed -i "${line}s/${pat}/${repl}/" "$f"
+
+      # If the edit changed nothing, no mutant existed. Counting it would
+      # inflate the score with a run that proved nothing.
+      if cmp -s "$f" "$bak"; then
+        mut_restore
+        continue
+      fi
+
+      set +e
+      eval "$test_cmd" >/dev/null 2>&1
+      rc=$?
+      set -e
+      mut_restore
+
+      if [ "$rc" -ne 0 ]; then
+        result="KILLED"; MUT_KILLED=$((MUT_KILLED + 1))
+        ok "$f:$line — $label — KILLED"
+      else
+        result="SURVIVED"; MUT_SURVIVED=$((MUT_SURVIVED + 1))
+        bad "$f:$line — $label — SURVIVED"
+      fi
+      MUT_ROWS+=("| \`$f\` | $line | $label | $rc | $result |")
+      done=$((done + 1))
+    done
+  done
+
+  trap - EXIT INT TERM
+
+  local total=$((MUT_KILLED + MUT_SURVIVED))
+  if [ "$total" -eq 0 ]; then
+    head1 "No mutants applied"
+    bad "nothing was mutated — the operators matched no behavioral line"
+    note "point it at a file directly:  fw mutate src/domain/totals.ts"
+    exit 1
+  fi
+
+  local score=$(( MUT_KILLED * 100 / total ))
+  local verdict; verdict=$([ "$MUT_SURVIVED" -eq 0 ] && echo PASS || echo FAIL)
+
+  head1 "Paste this into the verification report"
+  printf '\n## Mutation Evidence\n\n'
+  printf 'Collected: %s\n' "$(date -Iseconds)"
+  printf 'Commit: %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'not a git repository')"
+  printf 'Test command: `%s`\n\n' "$test_cmd"
+  printf '| File | Line | Mutation | Exit | Result |\n|---|---|---|---|---|\n'
+  printf '%s\n' "${MUT_ROWS[@]}"
+  printf '\nKilled %s · survived %s · mutation score %s%%\n\n' "$MUT_KILLED" "$MUT_SURVIVED" "$score"
+  printf '**Verdict: %s**\n\n' "$verdict"
+
+  if [ "$MUT_SURVIVED" -gt 0 ]; then
+    note "each SURVIVED row is production code you can break with the suite green"
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# fw product
+#
+# Epics and user stories are the one artifact this framework produced only as
+# chat. Chat is not a place: it cannot be reread next week, diffed, or pointed
+# at from a criterion. This gives them a home.
+#
+# It lives under .fw/ because that is already the standing decision for anything
+# this framework writes into someone else's repository — one namespace, covered
+# by one global ignore rule. Nothing here reaches the project's git history.
+# ---------------------------------------------------------------------------
+
+PRODUCT_ROOT=".fw/product"
+
+prod_slug_ok() { printf '%s' "${1:-}" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$'; }
+
+prod_status_of() {
+  sed -n 's/^Status:[[:space:]]*//p' "$1" 2>/dev/null | head -1
+}
+
+prod_title_of() {
+  sed -n 's/^#[[:space:]]*//p' "$1" 2>/dev/null | head -1
+}
+
+prod_require_root() {
+  if [ ! -d "$PRODUCT_ROOT" ]; then
+    bad "no $PRODUCT_ROOT here"
+    note "create it first:  fw product init"
+    exit 1
+  fi
+}
+
+prod_render() {
+  local src="$1" dst="$2"; shift 2
+  local body; body="$(cat "$src")"
+  while [ $# -gt 0 ]; do
+    body="${body//"$1"/"$2"}"
+    shift 2
+  done
+  printf '%s\n' "$body" > "$dst"
+}
+
+prod_init() {
+  head1 "Product artifacts in $(pwd)"
+
+  if [ -f "$GIT_IGNORE_GLOBAL" ] && grep -qxF '.fw/' "$GIT_IGNORE_GLOBAL"; then
+    ok ".fw/ is covered by the global gitignore"
+  else
+    bad ".fw/ is NOT in the global gitignore — run 'fw link' first"
+    note "without it these files land in the project's history, which is exactly"
+    note "what this directory exists to avoid"
+    exit 1
+  fi
+
+  mkdir -p "$PRODUCT_ROOT/epics" "$PRODUCT_ROOT/criteria"
+  ok "$PRODUCT_ROOT/epics/"
+  ok "$PRODUCT_ROOT/criteria/"
+
+  if [ ! -f "$PRODUCT_ROOT/README.md" ]; then
+    cat > "$PRODUCT_ROOT/README.md" <<'READMEEOF'
+# Product artifacts
+
+Epics and user stories for this project. Invisible to git by design — `.fw/` is
+covered by the global gitignore, so nothing here reaches the project's history.
+
+```
+epics/<slug>.md              boundary and standing decisions across slices
+criteria/<slug>-NN.md        one user story: story, criteria, gaps, evidence
+```
+
+The layout is **flat on purpose**. An epic's `## Slices` table is the source of
+truth for what belongs to it. Nesting stories inside per-epic directories would
+record that same relationship twice — in the tree and in the table — and the two
+drift the first time a slice is renamed.
+
+```bash
+fw product                   # what exists, and where each story stands
+fw product epic checkout     # new epic
+fw product hu checkout       # new story under it, row appended to the table
+```
+
+Do not maintain the slice list by hand; `fw product hu` appends to it.
+READMEEOF
+    ok "$PRODUCT_ROOT/README.md"
+  else
+    note "README.md already there — left untouched"
+  fi
+
+  head1 "Next"
+  note "fw product epic <slug>    start an epic"
+  note "fw product hu <slug>      add a story to it"
+}
+
+prod_epic() {
+  local slug="${1:-}"; shift || true
+  local title="${*:-}"
+
+  if ! prod_slug_ok "$slug"; then
+    bad "slug required, lowercase and dashed: fw product epic <slug> [title]"
+    exit 2
+  fi
+  prod_require_root
+
+  local dst="$PRODUCT_ROOT/epics/$slug.md"
+  if [ -e "$dst" ]; then
+    bad "$dst already exists — left untouched"
+    exit 1
+  fi
+
+  [ -n "$title" ] || title="$slug"
+  prod_render "$FW_ROOT/templates/product/epic.md" "$dst" \
+    '{{NAME}}' "$title" '{{DATE}}' "$(date +%Y-%m-%d)"
+
+  head1 "Epic created"
+  ok "$dst"
+  note "fill Outcome and Boundary before the first slice — 'Not in' is the half"
+  note "that pays for itself"
+}
+
+prod_hu() {
+  local epic="${1:-}"; shift || true
+  local title="${*:-}"
+
+  if ! prod_slug_ok "$epic"; then
+    bad "epic slug required: fw product hu <epic-slug> [title]"
+    exit 2
+  fi
+  prod_require_root
+
+  local epic_file="$PRODUCT_ROOT/epics/$epic.md"
+  if [ ! -f "$epic_file" ]; then
+    bad "no epic '$epic' — create it first"
+    note "fw product epic $epic"
+    exit 1
+  fi
+
+  # Numbering follows the files on disk, never the table, so a hand-edited table
+  # can never cause two stories to claim the same id.
+  local n=0 f base num
+  for f in "$PRODUCT_ROOT/criteria/$epic"-*.md; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f" .md)"
+    num="${base##*-}"
+    case "$num" in ''|*[!0-9]*) continue ;; esac
+    num=$((10#$num))
+    [ "$num" -gt "$n" ] && n="$num"
+  done
+  n=$((n + 1))
+  local id; id="$(printf '%s-%02d' "$epic" "$n")"
+  local dst="$PRODUCT_ROOT/criteria/$id.md"
+
+  [ -n "$title" ] || title="untitled"
+  prod_render "$FW_ROOT/templates/product/hu.md" "$dst" \
+    '{{ID}}' "$id" '{{NAME}}' "$title" '{{EPIC}}' "$epic" '{{DATE}}' "$(date +%Y-%m-%d)"
+
+  # Append the row after the last table line so the epic's Slices table stays
+  # the single place that lists what belongs to this epic.
+  local last_row row tmp
+  last_row="$(grep -n '^|' "$epic_file" | tail -1 | cut -d: -f1 || true)"
+  row="| $n | [$title](../criteria/$id.md) | draft | — |"
+  if [ -n "$last_row" ]; then
+    tmp="$(mktemp)"
+    head -n "$last_row" "$epic_file" > "$tmp"
+    printf '%s\n' "$row" >> "$tmp"
+    tail -n +$((last_row + 1)) "$epic_file" >> "$tmp"
+    mv "$tmp" "$epic_file"
+    ok "slice row appended to $epic_file"
+  else
+    warn "no table found in $epic_file — row not appended"
+    note "$row"
+  fi
+
+  head1 "Story created"
+  ok "$dst"
+  note "criteria in EARS shape; a gap you cannot fill is a question, not a guess"
+}
+
+prod_list() {
+  prod_require_root
+  head1 "Product artifacts in $(pwd)"
+
+  local found=0 epic_file slug title status story sid sstatus stitle n
+  for epic_file in "$PRODUCT_ROOT"/epics/*.md; do
+    [ -f "$epic_file" ] || continue
+    found=1
+    slug="$(basename "$epic_file" .md)"
+    title="$(prod_title_of "$epic_file")"
+    status="$(prod_status_of "$epic_file")"
+    printf '\n  %s%s%s  %s\n' "$GREEN" "${title:-$slug}" "$OFF" "${DIM}${status:-no status}${OFF}"
+
+    n=0
+    for story in "$PRODUCT_ROOT/criteria/$slug"-*.md; do
+      [ -f "$story" ] || continue
+      n=$((n + 1))
+      sid="$(basename "$story" .md)"
+      stitle="$(prod_title_of "$story")"
+      stitle="${stitle#"$sid" — }"
+      sstatus="$(prod_status_of "$story")"
+      printf '    %-28s %-10s %s\n' "$sid" "${sstatus:-draft}" "${DIM}${stitle}${OFF}"
+    done
+    [ "$n" -eq 0 ] && note "no stories yet — fw product hu $slug"
+  done
+
+  if [ "$found" -eq 0 ]; then
+    warn "no epics yet"
+    note "fw product epic <slug>"
+    return
+  fi
+
+  local orphan=0
+  for story in "$PRODUCT_ROOT"/criteria/*.md; do
+    [ -f "$story" ] || continue
+    sid="$(basename "$story" .md)"
+    slug="${sid%-*}"
+    [ -f "$PRODUCT_ROOT/epics/$slug.md" ] && continue
+    [ "$orphan" -eq 0 ] && head1 "Stories with no epic"
+    orphan=1
+    bad "$sid — no $PRODUCT_ROOT/epics/$slug.md"
+  done
+  [ "$orphan" -eq 0 ] || return 1
+}
+
+cmd_product() {
+  case "${1:-list}" in
+    init) shift; prod_init "$@" ;;
+    epic) shift; prod_epic "$@" ;;
+    hu)   shift; prod_hu "$@" ;;
+    list) shift; prod_list "$@" ;;
+    *) bad "unknown subcommand: $1"; note "init | epic | hu | list"; exit 2 ;;
+  esac
+}
+
 BLOCKED_LINES=()
 
 case "${1:-}" in
@@ -487,6 +964,8 @@ case "${1:-}" in
   install)  shift; cmd_install "$@" ;;
   doctor)   shift; cmd_doctor "$@" ;;
   evidence) shift; cmd_evidence "$@" ;;
+  mutate)   shift; cmd_mutate "$@" ;;
+  product)  shift; cmd_product "$@" ;;
   *)
     cat <<EOF
 fw — install this framework into a project
@@ -499,6 +978,17 @@ fw — install this framework into a project
   fw doctor            verify the install and that nothing personal leaks into git
   fw evidence          run typecheck, tests and contracts; print a pasteable
                        evidence table. Exits non-zero if any check fails
+  fw mutate [files]    break the production code on purpose and require the
+                       suite to go red. A green suite proves the tests ran, not
+                       that they watch anything. Exits non-zero if any mutant
+                       survives
+    --max <n>          mutations to apply, default 10 (one suite run each)
+    --test-cmd <cmd>   override the detected test command
+  fw product           epics and user stories under .fw/product, invisible to git
+    init               create .fw/product/ in this project
+    epic <slug> [t]    start an epic
+    hu <slug> [t]      add a story to it, appending its row to the epic table
+    list               what exists and where each story stands (default)
   fw backlog           what is ready to start, and how long each blocked item
                        has been waiting on an answer
                        FW_BACKLOG=<file>   default ~/backlog.md

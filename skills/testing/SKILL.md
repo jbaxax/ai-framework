@@ -304,6 +304,35 @@ records behavior instead of verifying it.
 This is the assertion an agent under time or token pressure reaches for, because
 it always passes. Check for it first in any test you did not write yourself.
 
+### Proving it mechanically — `fw mutate`
+
+Reading a test and judging it honest is a judgment call, and the dangerous
+tautologies are precisely the ones that survive that reading. There is a
+mechanical check that depends on nobody's opinion:
+
+> Break the production code on purpose. If the suite stays green, no test was
+> watching that line.
+
+```bash
+fw mutate                       # 10 mutations, files with a colocated test first
+fw mutate src/domain/totals.ts  # one file
+```
+
+Each mutant flips one operator — `&&` to `||`, `===` to `!==`, `return true` to
+`return false` — reruns the suite, then restores the file. `KILLED` means a test
+noticed. `SURVIVED` means that line is unprotected **with a green check over
+it**, which is worse than untested, because an untested line does not lie to
+you. The fake assertion above survives every mutant inside `round2` and
+`sumLines`; the real one kills them.
+
+Reach for it in three places: a suite you did not write reporting green, a
+refactor whose safety net must be proven before production code is touched, and
+any claim that an existing test already covers a criterion.
+
+An agent that writes the tests and then rules on its own tests has a conflict of
+interest. This is a script reading an exit code, which is why it settles the
+question. See `../../docs/mutation-testing.md`.
+
 ## Interaction with SDD
 
 `sdd-init` resolves Strict TDD per project and caches it. It defaults to
