@@ -258,7 +258,9 @@ check_drift() {
   if [ ! -f "$live" ]; then warn "$name not on this machine"; return; fi
   if [ ! -f "$tracked" ]; then warn "$name not tracked — copy it into machine/"; return; fi
 
-  if diff -q "$live" "$tracked" >/dev/null 2>&1; then
+  # --strip-trailing-cr: a checkout on Windows can rewrite the tracked copy with
+  # CRLF, and a byte comparison would then report drift that does not exist.
+  if diff -q --strip-trailing-cr "$live" "$tracked" >/dev/null 2>&1; then
     ok "$name matches the tracked copy"
   else
     warn "$name has drifted from machine/$(basename "$tracked")"

@@ -1,0 +1,4 @@
+# machine/ holds byte-for-byte copies of live config files so `fw doctor` can
+# diff them. Git's CRLF conversion would rewrite them on checkout and every
+# diff would report drift that does not exist.
+machine/*.json text eol=lf
