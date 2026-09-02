@@ -4,6 +4,8 @@ set -euo pipefail
 FW_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 OPENCODE_HOME="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
+GEMINI_HOME="${GEMINI_CONFIG_DIR:-$HOME/.gemini}"
+GEMINI_CLI_HOME="${ANTIGRAVITY_CONFIG_DIR:-$GEMINI_HOME/antigravity-cli}"
 GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
 
 # Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
@@ -107,9 +109,17 @@ cmd_link() {
     note "OpenCode not installed — skipping ($OPENCODE_HOME)"
   fi
 
+  if [ -d "$GEMINI_HOME" ] || [ -d "$GEMINI_CLI_HOME" ]; then
+    head1 "Gemini / Antigravity detected"
+    [ -d "$GEMINI_HOME" ] && link_skills_into "$GEMINI_HOME" "gemini"
+    [ -d "$GEMINI_CLI_HOME" ] && link_skills_into "$GEMINI_CLI_HOME" "antigravity-cli"
+  else
+    note "Gemini not installed — skipping ($GEMINI_HOME)"
+  fi
+
   head1 "Global gitignore"
   mkdir -p "$(dirname "$GIT_IGNORE_GLOBAL")"
-  local patterns=("CLAUDE.local.md" ".claude/settings.local.json" ".atl/" ".fw/" "contract-drift.md" "graphify-out/")
+  local patterns=("CLAUDE.local.md" "AGENTS.local.md" "GEMINI.local.md" "OPENCODE.local.md" ".claude/settings.local.json" ".atl/" ".fw/" "contract-drift.md" "graphify-out/")
   touch "$GIT_IGNORE_GLOBAL"
   for pattern in "${patterns[@]}"; do
     if grep -qxF "$pattern" "$GIT_IGNORE_GLOBAL"; then
@@ -154,26 +164,37 @@ cmd_install() {
   fi
 
   [ "$mode" = auto ] && mode="$(detect_sharing)"
-  local target_claude target_docs
+  local target_claude target_agents target_gemini target_docs target
   if [ "$mode" = shared ]; then
-    target_claude="CLAUDE.local.md"; target_docs=".fw/docs"
+    target_claude="CLAUDE.local.md"
+    target_agents="AGENTS.local.md"
+    target_gemini="GEMINI.local.md"
+    target_docs=".fw/docs"
     ok "repository looks shared — installing privately"
     note "$(git log --format='%ae' 2>/dev/null | sort -u | wc -l | tr -d ' ') distinct commit authors"
   else
-    target_claude="CLAUDE.md"; target_docs="docs"
+    target_claude="CLAUDE.md"
+    target_agents="AGENTS.md"
+    target_gemini="GEMINI.md"
+    target_docs="docs"
     ok "repository looks personal — installing normally"
   fi
 
   head1 "Plan"
-  note "$target_claude          <- framework CLAUDE.md"
+  note "$target_claude          <- framework rules for Claude"
+  note "$target_agents          <- framework rules for OpenCode / Agents"
+  note "$target_gemini          <- framework rules for Gemini / Antigravity"
   note "$target_docs/           <- framework docs"
   note "rules and skills        <- already global, nothing copied here"
 
-  if [ "$dry" = 1 ]; then head1 "Dry run — nothing written."; return; fi
-
-  if [ -e "$target_claude" ] && ! grep -q 'Framework Rules' "$target_claude" 2>/dev/null; then
+  # Every file we are about to write gets the same ownership check. AGENTS.md is
+  # a cross-tool convention and GEMINI.md is Gemini's own context file, so both
+  # plausibly exist as someone's hand-written work before this ever runs.
+  for target in "$target_claude" "$target_agents" "$target_gemini"; do
+    [ -e "$target" ] || continue
+    grep -q 'Framework Rules' "$target" 2>/dev/null && continue
     head1 "Aborted"
-    bad "$target_claude exists and was not written by this framework"
+    bad "$target exists and was not written by this framework"
     note "nothing was written — a half install leaves files in someone else's repo"
     if [ "$mode" = personal ]; then
       note "that file belongs to the project, which makes this a shared repository"
@@ -182,7 +203,7 @@ cmd_install() {
       note "merge it by hand, or move it aside and rerun"
     fi
     exit 1
-  fi
+  done
 
   if [ -d "$target_docs" ] && [ -n "$(ls -A "$target_docs" 2>/dev/null)" ] \
      && [ ! -f "$target_docs/.fw-owned" ]; then
@@ -195,9 +216,16 @@ cmd_install() {
     exit 1
   fi
 
+  # The checks run before this so --dry-run reports the abort it would hit.
+  if [ "$dry" = 1 ]; then head1 "Dry run — nothing written."; return; fi
+
   head1 "Writing"
   cp "$FW_ROOT/CLAUDE.md" "$target_claude"
   ok "$target_claude"
+  cp "$FW_ROOT/CLAUDE.md" "$target_agents"
+  ok "$target_agents (OpenCode / Agents)"
+  cp "$FW_ROOT/CLAUDE.md" "$target_gemini"
+  ok "$target_gemini (Gemini / Antigravity)"
 
   mkdir -p "$target_docs"
   : > "$target_docs/.fw-owned"
@@ -271,6 +299,22 @@ cmd_doctor() {
     else bad "opencode: only $oc_n/$total skills linked — run 'fw link'"; fi
   fi
 
+  # Two separate installs, so two separate lines. Folding them into one count
+  # lets a fully linked home hide an empty one behind a green check.
+  if [ -d "$GEMINI_HOME" ]; then
+    local gem_n; gem_n=$(count_linked_skills "$GEMINI_HOME")
+    if [ "$gem_n" -eq "$total" ]; then ok "gemini: $gem_n/$total skills linked"
+    elif [ "$gem_n" = 0 ]; then bad "gemini: installed but has none of the skills — run 'fw link'"
+    else bad "gemini: only $gem_n/$total skills linked — run 'fw link'"; fi
+  fi
+
+  if [ -d "$GEMINI_CLI_HOME" ]; then
+    local ag_n; ag_n=$(count_linked_skills "$GEMINI_CLI_HOME")
+    if [ "$ag_n" -eq "$total" ]; then ok "antigravity-cli: $ag_n/$total skills linked"
+    elif [ "$ag_n" = 0 ]; then bad "antigravity-cli: installed but has none of the skills — run 'fw link'"
+    else bad "antigravity-cli: only $ag_n/$total skills linked — run 'fw link'"; fi
+  fi
+
   if [ -f "$GIT_IGNORE_GLOBAL" ] && grep -qxF '.fw/' "$GIT_IGNORE_GLOBAL"; then
     ok "global gitignore configured"
   else
@@ -292,7 +336,7 @@ cmd_doctor() {
 
   if git rev-parse --git-dir >/dev/null 2>&1; then
     local leaked
-    leaked=$(git status --porcelain 2>/dev/null | grep -E 'CLAUDE\.local\.md|^\?\? \.fw/|^\?\? \.atl/' || true)
+    leaked=$(git status --porcelain 2>/dev/null | grep -E 'CLAUDE\.local\.md|AGENTS\.local\.md|GEMINI\.local\.md|OPENCODE\.local\.md|^\?\? \.fw/|^\?\? \.atl/' || true)
     if [ -n "$leaked" ]; then
       bad "personal files are visible to git:"
       printf '%s\n' "$leaked" | sed 's/^/      /'
