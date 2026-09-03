@@ -574,6 +574,8 @@ SKELETON
 MUT_ROWS=()
 MUT_KILLED=0
 MUT_SURVIVED=0
+MUT_NOT_VIABLE=0
+MUT_OUT=""
 MUT_ACTIVE_FILE=""
 MUT_ACTIVE_BAK=""
 
@@ -603,6 +605,26 @@ MUT_OPS=(
   "return true@@return false@@\`return true\` to \`return false\`"
   "return false@@return true@@\`return false\` to \`return true\`"
 )
+
+# A mutant that does not compile never reached the suite, so its exit code says
+# nothing about whether a test was watching. Counting it as KILLED inflates the
+# score exactly where the type system is strongest — which is the same mistake
+# this command exists to catch: trusting the exit code instead of the result.
+#
+# The evidence is the output, so the output is read, not discarded. A mutant is
+# only judged non-viable when a build/compile signature is present AND the
+# runner never reported a test summary; if tests ran, a real failure wins.
+mut_ran_tests() {
+  grep -qE "Test Files[[:space:]]+[0-9]|Tests[[:space:]]+[0-9]|Tests:[[:space:]]+[0-9]|[0-9]+ (passing|passed|failing|failed)" "$1"
+}
+
+mut_compile_error() {
+  grep -qE "error TS[0-9]{4}|TS[0-9]{4}:|bundle generation failed|Build failed|Transform failed|Could not resolve|Cannot find module|Pre-transform error" "$1"
+}
+
+mut_not_viable() {
+  mut_compile_error "$1" && ! mut_ran_tests "$1"
+}
 
 mut_esc_pat()  { printf '%s' "$1" | sed 's/[][\\\/.*^$]/\\&/g'; }
 mut_esc_repl() { printf '%s' "$1" | sed 's/[\\\/&]/\\&/g'; }
@@ -639,10 +661,11 @@ mut_source_files() {
 }
 
 cmd_mutate() {
-  local max=10 test_cmd="" targets=()
+  local max=10 per_file=3 test_cmd="" targets=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --max)      shift; max="${1:-10}" ;;
+      --per-file) shift; per_file="${1:-3}" ;;
       --test-cmd) shift; test_cmd="${1:-}" ;;
       -*) bad "unknown flag: $1"; exit 2 ;;
       *)  targets+=("$1") ;;
@@ -711,62 +734,77 @@ cmd_mutate() {
   fi
   ok "${#targets[@]} candidate file(s), files with a colocated test first"
 
-  note "up to $max mutation(s), one full suite run each"
+  note "up to $max mutation(s), at most $per_file per file, one full suite run each"
   note "forecast: about $((max * (baseline_secs + 1)))s"
 
   head1 "Mutants"
-  trap 'mut_restore' EXIT INT TERM
+  MUT_OUT="$(mktemp)"
+  trap 'mut_restore; rm -f "$MUT_OUT"' EXIT INT TERM
 
-  local done=0 f op from to label line content pat repl bak rc result
+  local done=0 in_file=0 f op from to label line content pat repl bak rc result
   for f in "${targets[@]}"; do
     [ "$done" -ge "$max" ] && break
     [ -f "$f" ] || continue
+    in_file=0
 
     for op in "${MUT_OPS[@]}"; do
       [ "$done" -ge "$max" ] && break
+      [ "$in_file" -ge "$per_file" ] && break
       from="${op%%@@*}"
       to="${op#*@@}"; to="${to%%@@*}"
       label="${op##*@@}"
 
-      line="$(grep -nF -- "$from" "$f" 2>/dev/null | head -1 | cut -d: -f1 || true)"
-      [ -n "$line" ] || continue
-      content="$(sed -n "${line}p" "$f")"
-      mut_skip_line "$content" && continue
+      # Every occurrence is a candidate, not only the first. Duplicated logic —
+      # the same guard copied into a second method — is exactly where a hole
+      # hides, and a first-match-only sweep reports that file as clean.
+      while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        [ "$done" -ge "$max" ] && break
+        [ "$in_file" -ge "$per_file" ] && break
 
-      bak="$(mktemp)"
-      cp -f "$f" "$bak"
-      MUT_ACTIVE_FILE="$f"; MUT_ACTIVE_BAK="$bak"
+        content="$(sed -n "${line}p" "$f")"
+        mut_skip_line "$content" && continue
 
-      pat="$(mut_esc_pat "$from")"
-      repl="$(mut_esc_repl "$to")"
-      sed -i "${line}s/${pat}/${repl}/" "$f"
+        bak="$(mktemp)"
+        cp -f "$f" "$bak"
+        MUT_ACTIVE_FILE="$f"; MUT_ACTIVE_BAK="$bak"
 
-      # If the edit changed nothing, no mutant existed. Counting it would
-      # inflate the score with a run that proved nothing.
-      if cmp -s "$f" "$bak"; then
+        pat="$(mut_esc_pat "$from")"
+        repl="$(mut_esc_repl "$to")"
+        sed -i "${line}s/${pat}/${repl}/" "$f"
+
+        # If the edit changed nothing, no mutant existed. Counting it would
+        # inflate the score with a run that proved nothing.
+        if cmp -s "$f" "$bak"; then
+          mut_restore
+          continue
+        fi
+
+        set +e
+        eval "$test_cmd" >"$MUT_OUT" 2>&1
+        rc=$?
+        set -e
         mut_restore
-        continue
-      fi
 
-      set +e
-      eval "$test_cmd" >/dev/null 2>&1
-      rc=$?
-      set -e
-      mut_restore
-
-      if [ "$rc" -ne 0 ]; then
-        result="KILLED"; MUT_KILLED=$((MUT_KILLED + 1))
-        ok "$f:$line — $label — KILLED"
-      else
-        result="SURVIVED"; MUT_SURVIVED=$((MUT_SURVIVED + 1))
-        bad "$f:$line — $label — SURVIVED"
-      fi
-      MUT_ROWS+=("| \`$f\` | $line | $label | $rc | $result |")
-      done=$((done + 1))
+        if [ "$rc" -ne 0 ] && mut_not_viable "$MUT_OUT"; then
+          result="NOT VIABLE"; MUT_NOT_VIABLE=$((MUT_NOT_VIABLE + 1))
+          warn "$f:$line — $label — NOT VIABLE (never compiled)"
+        elif [ "$rc" -ne 0 ]; then
+          result="KILLED"; MUT_KILLED=$((MUT_KILLED + 1))
+          ok "$f:$line — $label — KILLED"
+        else
+          result="SURVIVED"; MUT_SURVIVED=$((MUT_SURVIVED + 1))
+          bad "$f:$line — $label — SURVIVED"
+        fi
+        MUT_ROWS+=("| \`$f\` | $line | $label | $rc | $result |")
+        done=$((done + 1))
+        in_file=$((in_file + 1))
+      done < <(grep -nF -- "$from" "$f" 2>/dev/null | cut -d: -f1 || true)
     done
   done
 
   trap - EXIT INT TERM
+  rm -f "$MUT_OUT"
 
   local total=$((MUT_KILLED + MUT_SURVIVED))
   if [ "$total" -eq 0 ]; then
@@ -786,8 +824,16 @@ cmd_mutate() {
   printf 'Test command: `%s`\n\n' "$test_cmd"
   printf '| File | Line | Mutation | Exit | Result |\n|---|---|---|---|---|\n'
   printf '%s\n' "${MUT_ROWS[@]}"
-  printf '\nKilled %s · survived %s · mutation score %s%%\n\n' "$MUT_KILLED" "$MUT_SURVIVED" "$score"
+  printf '\nKilled %s · survived %s · not viable %s · mutation score %s%%\n' \
+    "$MUT_KILLED" "$MUT_SURVIVED" "$MUT_NOT_VIABLE" "$score"
+  printf 'Score is killed / (killed + survived). A mutant that never compiled is\n'
+  printf 'excluded: it never reached the suite, so it is not evidence either way.\n\n'
   printf '**Verdict: %s**\n\n' "$verdict"
+
+  if [ "$MUT_NOT_VIABLE" -gt 0 ]; then
+    note "$MUT_NOT_VIABLE mutant(s) were rejected by the compiler. That is the type"
+    note "system doing its job, not the suite — it is excluded from the score."
+  fi
 
   if [ "$MUT_SURVIVED" -gt 0 ]; then
     note "each SURVIVED row is production code you can break with the suite green"

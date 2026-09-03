@@ -28,24 +28,55 @@ The question `fw mutate` answers is the only one that settles it:
 4. Restore the file, byte for byte.
 5. Repeat.
 
-Two outcomes, and only one of them is good news:
+Three outcomes, and only one of them is good news:
 
 | Result | Meaning |
 |---|---|
-| **KILLED** | The suite went red. A test was watching that line. |
+| **KILLED** | The suite went red on an assertion. A test was watching that line. |
 | **SURVIVED** | The suite stayed green. That line is unprotected, with a green check over it. |
+| **NOT VIABLE** | The mutant never compiled, so the suite never saw it. No evidence either way. |
 
 A survivor is worse than an untested line, because an untested line does not lie
 to you.
+
+### Why NOT VIABLE exists
+
+A non-zero exit is not proof that a test noticed. In a typed language a mutation
+can be rejected by the compiler — `s !== 'todas'` becomes `s === 'todas'` on a
+narrowed union and `tsc` refuses it — and the run exits non-zero having executed
+**no tests at all**. Counting that as KILLED inflates the score precisely where
+the type system is strongest, which turns a high score into a lie in exactly the
+codebases that look safest.
+
+So the run's output is read, not discarded. A mutant is judged NOT VIABLE only
+when a build signature is present *and* the runner never printed a test summary;
+if tests ran, a real failure wins. Non-viable mutants are listed in the table and
+excluded from the score:
+
+```
+score = KILLED / (KILLED + SURVIVED)
+```
+
+That the compiler caught the edit is real protection — it is just not evidence
+about your suite, which is the only question this command asks.
 
 ## Usage
 
 ```bash
 fw mutate                          # 10 mutations, files with a colocated test first
 fw mutate --max 25                 # more mutations, one full suite run each
+fw mutate --per-file 8             # allow more mutants in a single file (default 3)
 fw mutate src/domain/totals.ts     # one file
 fw mutate --test-cmd 'bun test src/domain'   # narrow the suite
 ```
+
+Every occurrence of an operator is a candidate, not only the first one in the
+file. Duplicated logic — the same guard copied into a second method — is exactly
+where a hole hides, and a first-match-only sweep reports that file as clean.
+
+`--per-file` caps how many mutants one file may take from the `--max` budget so a
+single large file cannot consume the whole run. Raise it when you are auditing
+one file on purpose.
 
 The package manager is detected the same way `fw evidence` detects it: `bun.lock`
 means bun, `pnpm-lock.yaml` means pnpm, otherwise npm. The test command is
@@ -81,12 +112,27 @@ A survivor is a finding, not a verdict. Three causes, in the order worth checkin
 3. **Nothing tests it.** Legitimate, and now visible. Decide with the Evidence
    Gate whether this criterion is worth proving before writing anything.
 
+## Reading a NOT VIABLE
+
+It means the edit never became a running program. Usually the type system
+narrowed something and the mutation contradicted it. There is nothing to fix and
+nothing to celebrate — it is a mutant that could not be asked the question.
+
+If a whole run comes back non-viable, the file is decided at compile time rather
+than at runtime, and mutation testing has little to say about it. Point the
+command at code whose branches are chosen from data instead.
+
 ## Why this is mechanical and not a judgment call
 
 An agent that writes the tests and then rules on whether its own tests are any
 good has a conflict of interest. The mutation is a script: it edits bytes, runs
-a command, reads an exit code, and restores the file. Nothing about the verdict
-depends on anyone's opinion of the work.
+a command, reads what the run printed, and restores the file. Nothing about the
+verdict depends on anyone's opinion of the work.
+
+It reads the output rather than only the exit code for the same reason the rest
+of this document exists. An exit code says the process failed; it does not say
+a test was watching. Those are different claims, and only one of them is the
+question.
 
 This is the same reason `fw evidence` pastes its table verbatim instead of
 summarising it. *A run is evidence. A description of a run is not.*

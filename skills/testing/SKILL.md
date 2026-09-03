@@ -162,6 +162,17 @@ These hold in every mode, including Strict TDD.
 - **Never write a test that cannot fail.** `expect(component).toBeTruthy()`
   after merely creating it verifies the framework, not the code. Delete
   CLI-generated `should create` specs instead of keeping them.
+  - **When the stub is the only test in the file**, deleting it removes the one
+    thing that compiles that module. That is still the right call *once a real
+    test replaces it* — but a module whose only spec is the stub has **zero**
+    behavioural coverage today and a green check saying otherwise. Record it as
+    an untested module and replace the stub; do not delete it and call the
+    module covered. A stub inside a file that already has real tests is pure
+    redundancy — every one of those tests already constructs the subject — and
+    goes immediately.
+  - Read every match before deleting. `should be created with initial empty
+    session signals` and `should create a new unit of measure` are real tests
+    that a substring search for `should create` will happily offer up.
 - Test behavior, never implementation. Assert on returned values and visible
   output, never on internal call counts, private state, or CSS class names.
 - One runner: **Vitest** — for both Next.js and Angular v22 (`ng test`).
@@ -322,7 +333,13 @@ Each mutant flips one operator — `&&` to `||`, `===` to `!==`, `return true` t
 `return false` — reruns the suite, then restores the file. `KILLED` means a test
 noticed. `SURVIVED` means that line is unprotected **with a green check over
 it**, which is worse than untested, because an untested line does not lie to
-you. The fake assertion above survives every mutant inside `round2` and
+you. `NOT VIABLE` means the compiler rejected the edit and no test ever ran: it
+is excluded from the score, because it is evidence about your types, not about
+your suite.
+
+Read the result, not the headline. A non-zero exit proves the process failed —
+it does not prove a test was watching, and in a strictly typed codebase those
+come apart constantly. The fake assertion above survives every mutant inside `round2` and
 `sumLines`; the real one kills them.
 
 Reach for it in three places: a suite you did not write reporting green, a
