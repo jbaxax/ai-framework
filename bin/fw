@@ -775,7 +775,11 @@ cmd_mutate() {
 
         # If the edit changed nothing, no mutant existed. Counting it would
         # inflate the score with a run that proved nothing.
-        if cmp -s "$f" "$bak"; then
+        #
+        # Compare the mutated LINE, not the whole file: `sed -i` rewrites CRLF
+        # sources as LF, so a whole-file comparison reports "changed" for an
+        # edit that matched nothing and the run would score unmutated code.
+        if [ "${content%$''}" = "$(sed -n "${line}p" "$f" | tr -d '')" ]; then
           mut_restore
           continue
         fi
