@@ -11,12 +11,6 @@ GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
 # which is what makes a reinstall unable to destroy it.
 PROJECT_RULES="PROJECT-RULES.md"
 
-# One pointer in the machine's shared settings registry; the logic stays in
-# files fw owns, so another tool rewriting settings.json costs a re-link and
-# never a lost guard.
-FW_HOOK_HOME="$CLAUDE_HOME/fw-hooks"
-FW_PLAN_HOOK="$FW_HOOK_HOME/plan-guard.sh"
-
 # Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
 # set, even with Developer Mode on, because MSYS only calls the native
 # CreateSymbolicLink API in this mode. Set it here so `fw link` works from any
@@ -49,20 +43,44 @@ python_bin() {
   command -v python3 2>/dev/null || command -v python 2>/dev/null || true
 }
 
+is_windows() {
+  case "$(uname -s 2>/dev/null)" in MINGW*|MSYS*|CYGWIN*) return 0 ;; *) return 1 ;; esac
+}
+
+# The string settings.json will hold. Claude Code launches a hook through the
+# host shell, so on Windows it must be a .cmd at a path cmd.exe can resolve — an
+# MSYS /c/Users path, or a bare .sh, is silently unrunnable there. It points at
+# the repository and not a symlink under $HOME because on Windows `ln -s`
+# degrades to a copy, and a copied guard goes stale the moment a rule changes.
+plan_hook_command() {
+  if is_windows; then
+    local win="$FW_ROOT/hooks/plan-guard.cmd"
+    cygpath -m "$win" 2>/dev/null || printf '%s' "$win"
+  else
+    printf '%s' "$FW_ROOT/hooks/plan-guard.sh"
+  fi
+}
+
+plan_hook_script() {
+  if is_windows; then printf '%s' "$FW_ROOT/hooks/plan-guard.cmd"
+  else printf '%s' "$FW_ROOT/hooks/plan-guard.sh"; fi
+}
+
 register_plan_hook() {
   local mode="${1:-install}"
   local settings="$CLAUDE_HOME/settings.json"
+  local hook; hook="$(plan_hook_command)"
   local py; py="$(python_bin)"
 
   if [ -z "$py" ]; then
     bad "plan hook: no python on PATH, cannot read or write $settings"
     note "register it by hand under .hooks.UserPromptSubmit:"
-    note "  { \"hooks\": [ { \"type\": \"command\", \"command\": \"$FW_PLAN_HOOK\" } ] }"
+    note "  { \"hooks\": [ { \"type\": \"command\", \"command\": \"$hook\" } ] }"
     return
   fi
 
   if [ "$mode" = check ]; then
-    if "$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$FW_PLAN_HOOK" --check >/dev/null 2>&1; then
+    if "$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" --check >/dev/null 2>&1; then
       ok "plan hook registered in settings.json"
     else
       bad "plan hook NOT registered in settings.json — run 'fw link'"
@@ -71,7 +89,7 @@ register_plan_hook() {
   fi
 
   local result rc=0
-  result="$("$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$FW_PLAN_HOOK" 2>&1)" || rc=$?
+  result="$("$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" 2>&1)" || rc=$?
   if [ "$rc" -ne 0 ]; then
     bad "plan hook: could not register — $result"
     return
@@ -148,8 +166,12 @@ cmd_link() {
 
   head1 "Prompt hook (global, once per machine)"
   note "recognises \"elabora un plan para ...\" and names the flow before any step"
-  mkdir -p "$FW_HOOK_HOME"
-  link_or_warn "$FW_ROOT/hooks/plan-guard.sh" "$FW_PLAN_HOOK" "hook  plan-guard.sh"
+  local hook_script; hook_script="$(plan_hook_script)"
+  if [ -f "$hook_script" ]; then
+    ok "hook  $(basename "$hook_script")"
+  else
+    bad "hook  $(basename "$hook_script") missing from $FW_ROOT/hooks"
+  fi
   register_plan_hook install
 
   link_skills_into "$CLAUDE_HOME" "claude"
@@ -354,10 +376,11 @@ cmd_doctor() {
   done
   [ "$linked" = 0 ] && warn "no framework rules linked — run 'fw link'"
 
-  if [ -L "$FW_PLAN_HOOK" ] && [ -e "$FW_PLAN_HOOK" ]; then
-    ok "plan hook linked: $(basename "$FW_PLAN_HOOK")"
+  local hook_script; hook_script="$(plan_hook_script)"
+  if [ -f "$hook_script" ]; then
+    ok "plan hook present: $(basename "$hook_script")"
   else
-    bad "plan hook not linked — run 'fw link'"
+    bad "plan hook missing: $hook_script"
   fi
   register_plan_hook check
 

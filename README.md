@@ -31,19 +31,30 @@ and can never appear in a commit.
 `fw link` also registers one `UserPromptSubmit` hook in `~/.claude/settings.json`.
 When a prompt asks for a plan — *"elabora un plan para ..."* and the usual
 variants — it injects the table that decides what the plan must open with: a
-document or a pasted case starts at acceptance criteria, a bug starts at a red
-reproduction, maintenance starts at reading the code. Nothing is blocked and no
-prompt is ever modified.
+document or a pasted case starts at acceptance criteria and a user story on disk,
+a bug starts at a red reproduction, maintenance starts at reading the code. It
+also fixes the two ends: ask only what the document and the prompt leave
+unanswered, and close the plan with `fw evidence` and `fw mutate`. Nothing is
+blocked and no prompt is ever modified.
 
-`settings.json` is a shared registry, so the hook is registered as one pointer
-and every other tool's entries are left untouched. The logic lives in
-`hooks/plan-guard.sh`, which fw owns. If another tool rewrites `settings.json`,
-`fw doctor` reports the missing registration and `fw link` restores it. Registering
-it requires `python3` (or `python`) on PATH; without one, `fw link` prints the
-stanza to add by hand rather than failing silently.
+`settings.json` is a shared registry, so the hook goes in as one pointer and
+every other tool's entries are left untouched. The pointer names a file in this
+repository rather than a symlink in `$HOME`: on Windows `ln -s` degrades to a
+copy, and a copied guard goes stale the moment a rule changes here. Move the
+clone and `fw doctor` goes red; `fw link` repoints it.
+
+On Windows the pointer is `hooks/plan-guard.cmd` at a `C:/...` path, because
+Claude Code runs hooks through the host shell — an MSYS `/c/Users/...` path, or a
+bare `.sh`, is silently unrunnable there. That launcher locates Git Bash exactly
+as `bin/fw.cmd` does and hands off to `plan-guard.sh`; if Git Bash is not found it
+exits quietly, because a broken guard must never eat a prompt.
+
+Registering needs `python3` or `python` on PATH. Without one, `fw link` and
+`fw doctor` both report it in red and print the stanza to add by hand — they
+never pretend it worked.
 
 It matches the phrasing above, not every possible way to ask for a plan. A
-request worded differently gets no reminder — this narrows the gap, it does not
+request worded differently gets no reminder: this narrows the gap, it does not
 close it.
 
 ### Once per project
@@ -135,7 +146,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 |---|---|
 | `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence`, `backlog`, `mutate`, `product`. **CRLF line endings** — a programmatic edit with LF patterns matches nothing and fails silently |
 | `machine/` | The two config files that define this setup, and why `CLAUDE.md` is not one of them |
-| `hooks/` | `plan-guard.sh`, the prompt hook `fw link` registers, and the registrar that installs it |
+| `hooks/` | `plan-guard.sh` and its `plan-guard.cmd` Windows launcher — the prompt hook `fw link` registers — plus the registrar that installs it |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `rules/angular.md` | Path-scoped rule — copy to `.claude/rules/` in Angular projects |
 | `rules/backend.md` | Path-scoped rule — NestJS/Prisma, full-stack projects only |
