@@ -21,6 +21,20 @@ nobody wrote down.
 | A bug, a correction, something broken | `skills/diagnosis` — a red reproduction before any theory of the cause. No user story |
 | Maintenance or refactor of existing code | Read it first. Approval tests before production code is touched; `skills/testing` decides the mode |
 
+Name the blast radius before proposing steps. Where `graphify-out/` exists, ask
+the graph instead of grepping: `graphify affected "<file or symbol>"` returns the
+real dependents from the AST with file and line, at zero tokens, and was measured
+more accurate than grep. Also `graphify explain "<X>"` for callers and
+definition, `graphify god-nodes` for what is load-bearing, `graphify update
+<path>` when the graph is stale. Use it to choose which files to open, then open
+them — a node list is a map, not an explanation. No graph in the repository? Say
+so in the same line: an unmeasured blast radius is an assumption, not a finding.
+
+Interface work — layout, hierarchy, empty and error states, error copy,
+accessibility — belongs to the `impeccable` skill. These rules decide where a
+file goes and what it may import; they say nothing about whether the screen
+works.
+
 Questions are the exception, not the ritual. If the backend document or the
 prompt already settles something, do not ask it — write the story and ask only
 whether the story itself is right. Ask only where nothing you were given answers,

@@ -37,6 +37,12 @@ standard than the tool's floor.
   unverified until a mutant on the relevant file is killed. Run `fw mutate` and
   paste its table. A `SURVIVED` row is unprotected code with a green check over
   it, and the criterion it was supposed to prove is `UNVERIFIED`.
+- **A typecheck is not a build.** `tsc --noEmit` never sees an Angular template
+  error, an unresolved asset, or anything only the bundler resolves. `fw evidence`
+  runs `typecheck`, `lint`, `build`, `tests` and `contracts`; a table with no
+  `build` row, on a project that has a build script, is an incomplete
+  verification. `--no-build` exists for speed during iteration and has no place
+  in a report.
 - **A check you have never seen fail is not a check.** Any instrument improvised
   for a verification — a `grep` over build output, an audit script, a `jq` filter,
   a one-off CI step — has nothing testing it, and a pattern that matches nothing
@@ -90,6 +96,7 @@ tells you which one you have.
 | No test runner in the project at all | `PASS WITH WARNINGS`, stating that as the reason |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
 | Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |
+| Project has a build script and the table carries no `build` row | `FAIL` — `UNVERIFIED`, a typecheck did not prove it builds |
 | Evidence executed, all green, every criterion mapped | `PASS` |
 
 ## Execution Steps

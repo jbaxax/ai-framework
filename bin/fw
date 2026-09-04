@@ -485,6 +485,18 @@ summarize() {
   count=$(printf '%s\n' "$plain" | grep -cE 'error TS[0-9]+' || true)
   if [ "$count" -gt 0 ]; then printf '%s type error(s)' "$count"; return; fi
 
+  # Best-effort label only. Every bundler names its failure differently and no
+  # list of patterns stays complete — which is why the verdict comes from the
+  # exit code of the real build, never from matching its output.
+  line=$(printf '%s\n' "$plain" | grep -oE 'failed with [0-9]+ error' | tail -1 || true)
+  if [ -n "$line" ]; then printf '%s(s)' "$line"; return; fi
+
+  count=$(printf '%s\n' "$plain" | grep -cE '(^|[[:space:]])(X[[:space:]]+)?\[ERROR\]|^ERROR in |Build error occurred' || true)
+  if [ "$count" -gt 0 ]; then printf '%s build error(s)' "$count"; return; fi
+
+  line=$(printf '%s\n' "$plain" | grep -oE '[0-9]+ problems?( \([0-9]+ errors?)?' | tail -1 || true)
+  if [ -n "$line" ]; then printf '%s' "$line"; return; fi
+
   count=$(printf '%s\n' "$plain" | grep -cE '^(DRIFT|UNREACHABLE)[[:space:]]' || true)
   if [ "$count" -gt 0 ]; then printf '%s contract(s) drifted' "$count"; return; fi
 
@@ -514,6 +526,15 @@ run_check() {
 }
 
 cmd_evidence() {
+  local skip_build=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --no-build) skip_build=1 ;;
+      *) bad "unknown flag: $1"; exit 2 ;;
+    esac
+    shift
+  done
+
   local rt; rt="$(runner)"
   head1 "Collecting evidence in $(pwd)"
 
@@ -522,6 +543,17 @@ cmd_evidence() {
   if pkg_script typecheck; then run_check "typecheck" "$rt run typecheck"
   elif [ -f tsconfig.json ]; then run_check "typecheck" "${rt}x tsc --noEmit"
   else warn "no typecheck available"; fi
+
+  if pkg_script lint; then run_check "lint" "$rt run lint"
+  else warn "no lint script in package.json"; fi
+
+  # A build is not a typecheck. tsc --noEmit never sees an Angular template
+  # error, an unresolved asset, or anything the bundler alone resolves — and a
+  # broken build reported green is what this table exists to make impossible.
+  if [ "$skip_build" = 1 ]; then
+    warn "build skipped (--no-build)"
+  elif pkg_script build; then run_check "build" "$rt run build"
+  else warn "no build script in package.json"; fi
 
   if pkg_script test; then run_check "tests" "$rt run test"
   else warn "no test script in package.json"; fi
@@ -565,7 +597,8 @@ cmd_backlog() {
 SKELETON
     head1 "Created $BACKLOG_FILE"
     note "Ready     — passes the Definition of Ready, can be finished without asking anyone"
-    note "Blocked   — waiting on an answer. Record the question and (asked YYYY-MM-DD)"
+    note "Blocked   — waiting on an answer. Record the question and the date:"
+    note "            (asked 2026-09-03) or (preguntado 2026-09-03). A bare date works too"
     note "Not ready — no criteria yet. Run the requirements skill on it first"
     return
   fi
@@ -597,7 +630,14 @@ SKELETON
       blocked)
         blocked=$((blocked+1))
         local asked days
-        asked=$(printf '%s' "$text" | grep -oE 'asked [0-9]{4}-[0-9]{2}-[0-9]{2}' | tail -1 | cut -d' ' -f2 || true)
+        # The marker may be written in any language, and a bare ISO date is
+        # unambiguous without one. Demanding the English word made a Spanish
+        # entry lose its wait in silence — and the days waiting is the only
+        # number this bucket exists to show.
+        asked=$(printf '%s' "$text" \
+          | grep -oiE '(asked|preguntad[oa]|consultad[oa]|pedido)[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}' \
+          | tail -1 | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+        [ -n "$asked" ] || asked=$(printf '%s' "$text" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | tail -1 || true)
         if [ -n "$asked" ]; then
           days=$(( (today - $(date -d "$asked" +%s 2>/dev/null || echo "$today")) / 86400 ))
         else
@@ -892,6 +932,17 @@ cmd_mutate() {
 
   local total=$((MUT_KILLED + MUT_SURVIVED))
   if [ "$total" -eq 0 ]; then
+    # Mutants that were applied and rejected by the compiler are not the same
+    # as operators that matched nothing. Reporting both as "nothing was
+    # mutated" sends the reader to widen the target when the target was fine.
+    if [ "$MUT_NOT_VIABLE" -gt 0 ]; then
+      head1 "No mutant reached the suite"
+      bad "$MUT_NOT_VIABLE mutant(s) applied, every one rejected by the compiler"
+      note "the type system refused each edit, so the suite was never asked and"
+      note "this run is no evidence either way — not a pass"
+      note "try a file whose logic the types do not already guard"
+      exit 1
+    fi
     head1 "No mutants applied"
     bad "nothing was mutated — the operators matched no behavioral line"
     note "point it at a file directly:  fw mutate src/domain/totals.ts"
