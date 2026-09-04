@@ -11,6 +11,12 @@ GIT_IGNORE_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
 # which is what makes a reinstall unable to destroy it.
 PROJECT_RULES="PROJECT-RULES.md"
 
+# One pointer in the machine's shared settings registry; the logic stays in
+# files fw owns, so another tool rewriting settings.json costs a re-link and
+# never a lost guard.
+FW_HOOK_HOME="$CLAUDE_HOME/fw-hooks"
+FW_PLAN_HOOK="$FW_HOOK_HOME/plan-guard.sh"
+
 # Git Bash's `ln -s` copies instead of symlinking on Windows unless this is
 # set, even with Developer Mode on, because MSYS only calls the native
 # CreateSymbolicLink API in this mode. Set it here so `fw link` works from any
@@ -36,6 +42,44 @@ link_or_warn() {
   else
     bad "$label -> $src (ln did not create a real symlink, got a copy instead)"
     note "Windows needs Developer Mode on AND MSYS=winsymlinks:nativestrict for ln -s to work"
+  fi
+}
+
+python_bin() {
+  command -v python3 2>/dev/null || command -v python 2>/dev/null || true
+}
+
+register_plan_hook() {
+  local mode="${1:-install}"
+  local settings="$CLAUDE_HOME/settings.json"
+  local py; py="$(python_bin)"
+
+  if [ -z "$py" ]; then
+    bad "plan hook: no python on PATH, cannot read or write $settings"
+    note "register it by hand under .hooks.UserPromptSubmit:"
+    note "  { \"hooks\": [ { \"type\": \"command\", \"command\": \"$FW_PLAN_HOOK\" } ] }"
+    return
+  fi
+
+  if [ "$mode" = check ]; then
+    if "$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$FW_PLAN_HOOK" --check >/dev/null 2>&1; then
+      ok "plan hook registered in settings.json"
+    else
+      bad "plan hook NOT registered in settings.json — run 'fw link'"
+    fi
+    return
+  fi
+
+  local result rc=0
+  result="$("$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$FW_PLAN_HOOK" 2>&1)" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    bad "plan hook: could not register — $result"
+    return
+  fi
+  ok "plan hook $result in settings.json"
+  if [ "$result" = added ]; then
+    note "settings.json changed — refresh the snapshot so doctor stays quiet:"
+    note "  cp \"$settings\" \"$FW_ROOT/machine/claude-settings.json\""
   fi
 }
 
@@ -101,6 +145,12 @@ cmd_link() {
     local name="fw-$(basename "$rule")"
     link_or_warn "$rule" "$CLAUDE_HOME/rules/$name" "rule  $name"
   done
+
+  head1 "Prompt hook (global, once per machine)"
+  note "recognises \"elabora un plan para ...\" and names the flow before any step"
+  mkdir -p "$FW_HOOK_HOME"
+  link_or_warn "$FW_ROOT/hooks/plan-guard.sh" "$FW_PLAN_HOOK" "hook  plan-guard.sh"
+  register_plan_hook install
 
   link_skills_into "$CLAUDE_HOME" "claude"
 
@@ -303,6 +353,13 @@ cmd_doctor() {
     else bad "broken symlink: $rule"; fi
   done
   [ "$linked" = 0 ] && warn "no framework rules linked — run 'fw link'"
+
+  if [ -L "$FW_PLAN_HOOK" ] && [ -e "$FW_PLAN_HOOK" ]; then
+    ok "plan hook linked: $(basename "$FW_PLAN_HOOK")"
+  else
+    bad "plan hook not linked — run 'fw link'"
+  fi
+  register_plan_hook check
 
   count_linked_skills() {
     local home="$1" n=0
