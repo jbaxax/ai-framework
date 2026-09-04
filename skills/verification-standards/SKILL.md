@@ -37,9 +37,46 @@ standard than the tool's floor.
   unverified until a mutant on the relevant file is killed. Run `fw mutate` and
   paste its table. A `SURVIVED` row is unprotected code with a green check over
   it, and the criterion it was supposed to prove is `UNVERIFIED`.
+- **A check you have never seen fail is not a check.** Any instrument improvised
+  for a verification — a `grep` over build output, an audit script, a `jq` filter,
+  a one-off CI step — has nothing testing it, and a pattern that matches nothing
+  reports the same silence as a clean run. Break what it watches once, confirm it
+  goes red, then trust it. An instrument that stayed quiet through a deliberate
+  failure has proved nothing about any quiet run before it.
 - Never assign a verdict for work you did not observe. If a check could not run,
   report it as `BLOCKED` with the reason — never as passing, and never as a
   warning that reads like passing.
+
+## The instrument is part of the evidence
+
+A real case, and the reason this rule exists. A build was verified for hours with:
+
+```bash
+grep -E "error TS|✘" build.log   # never matched, so the build was reported ok
+```
+
+esbuild does not print either pattern. It prints:
+
+```
+X [ERROR] TS1003: Identifier expected
+```
+
+The grep was silent on a broken build exactly as it was silent on a working one,
+and nothing in the report could tell the two apart. One deliberate break — a
+stray character in any source file — would have exposed it in seconds.
+
+The framework already refuses to believe a green suite until a mutant proves it
+watches something. The same suspicion applies to whatever is doing the watching:
+
+| Instrument | The break that proves it |
+|---|---|
+| A `grep` or regex over tool output | Cause the error once and confirm the pattern matches its real text |
+| An audit or drift script | Feed it one known-bad input and confirm it exits non-zero |
+| A `jq` or path filter | Point it at a missing key and confirm it fails instead of returning empty |
+| A new CI or hook step | Push a change that must be rejected and confirm the step blocks it |
+
+An empty result and a passing result look identical. Only the deliberate failure
+tells you which one you have.
 
 ## Decision Gates
 
@@ -52,17 +89,20 @@ standard than the tool's floor.
 | Criterion about observable UI behavior, no browser observation reported | `FAIL` — no test layer can see it |
 | No test runner in the project at all | `PASS WITH WARNINGS`, stating that as the reason |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
+| Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |
 | Evidence executed, all green, every criterion mapped | `PASS` |
 
 ## Execution Steps
 
 1. Run `fw evidence` and keep its output verbatim.
-2. For each acceptance criterion, name the Evidence Gate row that applies and
+2. For every check outside that table — anything written for this verification —
+   make it fail once and record what it printed when it did.
+3. For each acceptance criterion, name the Evidence Gate row that applies and
    point at the evidence that satisfies it.
-3. List any criterion with no evidence. That list is the finding — do not soften
+4. List any criterion with no evidence. That list is the finding — do not soften
    it into a suggestion.
-4. Assign the verdict from the gates above.
-5. Include the evidence table in the report itself, not a summary of it.
+5. Assign the verdict from the gates above.
+6. Include the evidence table in the report itself, not a summary of it.
 
 ## Output Contract
 

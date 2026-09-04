@@ -59,6 +59,10 @@ evidence. "Tests pass" is not evidence unless the run is shown.
   state, or CSS class names.
 - **Verify the assertion is on a key that exists.** An assertion against a field
   the fixture never set is vacuously true and passes forever.
+- **Make any improvised check fail once before trusting it.** A `grep` over build
+  output, an audit script, a `jq` filter — nothing tests these, and a pattern that
+  matches nothing is indistinguishable from a clean run. Break what it watches,
+  confirm it goes red, then believe it. See `../skills/verification-standards/SKILL.md`.
 - No conditional logic inside a test. Mock only true external boundaries.
 
 ## Proving it, not claiming it
