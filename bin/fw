@@ -723,6 +723,191 @@ cmd_evidence() {
 # the only reason it could be claimed correct rather than hoped correct.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# fw review
+#
+# `CLAUDE.md` §1.2 says the dependency rule is "verifiable, not aspirational —
+# check the imports in each layer before finishing", and nothing checked them.
+# The rule that calls itself verifiable was the one rule with no verifier.
+#
+# It reads the ADDED lines of the diff, never the whole file. A violation that
+# was already there is not this change's business — §4.4 forbids restructuring
+# existing code as a side effect — and a reviewer buried in pre-existing
+# findings stops reading the new ones.
+# ---------------------------------------------------------------------------
+
+REV_ROWS=()
+REV_BAD=0
+
+rev_row() {
+  REV_ROWS+=("| $1 | $2 | $3 |")
+  REV_BAD=$((REV_BAD + 1))
+  bad "$1:$2 — $3"
+}
+
+# The layer a path belongs to, from the folder it lives in. Anything outside a
+# known layer has no rule to break here.
+rev_layer_of() {
+  case "$1" in
+    */domain/*)         printf 'domain' ;;
+    */application/*)    printf 'application' ;;
+    */infrastructure/*) printf 'infrastructure' ;;
+    */presentation/*)   printf 'presentation' ;;
+    *) printf '' ;;
+  esac
+}
+
+# §1.2 warns that a text search for HttpClient also matches the comment saying a
+# file must never import it, so only real import statements are read.
+rev_import_target() {
+  printf '%s' "$1" | sed -n "s/.*from[[:space:]]*['\"]\([^'\"]*\)['\"].*/\1/p;s/.*require([[:space:]]*['\"]\([^'\"]*\)['\"].*/\1/p" | head -1
+}
+
+# Every branch ends in an explicit return 0. A `grep && rev_row` as the last
+# command makes the function return grep's status, and under set -e a file with
+# no violation would kill the run — silently, after the findings printed so far.
+rev_check_import() {
+  local file="$1" line="$2" text="$3" layer target
+  layer="$(rev_layer_of "$file")"
+  [ -n "$layer" ] || return 0
+  case "$text" in *import\ *|*require\(*) ;; *) return 0 ;; esac
+  target="$(rev_import_target "$text")"
+  [ -n "$target" ] || return 0
+
+  case "$layer" in
+    domain)
+      # Pure: only other domain files. A bare specifier is a library. A relative
+      # path is fine only while it stays inside domain/ — `../../../lib/supabase`
+      # is the exact leak CLAUDE.md §1.2 names, and it leaves through `../`.
+      case "$target" in
+        ./*)
+          : ;;
+        ../*)
+          case "$target" in
+            *domain/*) : ;;
+            *) rev_row "$file" "$line" "domain imports \`$target\` — it leaves domain/, and domain depends on nothing" ;;
+          esac
+          ;;
+        *)
+          rev_row "$file" "$line" "domain imports the library \`$target\` — domain declares its own types"
+          ;;
+      esac
+      ;;
+    application)
+      if printf '%s' "$target" | grep -q 'presentation/'; then
+        rev_row "$file" "$line" "application imports \`$target\` — input types belong to domain, never to a schema in presentation"
+      fi
+      ;;
+    infrastructure)
+      if printf '%s' "$target" | grep -qE '(application|presentation)/'; then
+        rev_row "$file" "$line" "infrastructure imports \`$target\` — infrastructure may only depend on domain"
+      fi
+      ;;
+    presentation)
+      if printf '%s' "$target" | grep -q 'infrastructure/'; then
+        rev_row "$file" "$line" "presentation imports \`$target\` — presentation goes through application"
+      fi
+      ;;
+  esac
+  return 0
+}
+
+# The tool-read comments are the declared exceptions in §5; everything else is a
+# comment the rule forbids.
+rev_comment_allowed() {
+  printf '%s' "$1" | grep -qE '@ts-expect-error|@ts-ignore|eslint-disable|prettier-ignore|biome-ignore|^[[:space:]]*.?.?[[:space:]]*(Copyright|SPDX|License)|use (client|server)'
+}
+
+cmd_review() {
+  git rev-parse --git-dir >/dev/null 2>&1 || { bad "not a git repository"; exit 1; }
+
+  local base; base="$(pass_base)"
+  head1 "Reviewing the added lines in $(pwd)"
+  ok "comparing against $base"
+
+  # A new file has no diff against anything, and a new file is the common case
+  # for the layers this checks. Its whole content is added, so it is rendered as
+  # such — read-only, without touching the index.
+  local diff_out untracked f
+  diff_out="$({ git diff -U0 "$base"...HEAD 2>/dev/null; git diff -U0 --cached 2>/dev/null; git diff -U0 2>/dev/null; } || true)"
+  untracked="$(git ls-files --others --exclude-standard 2>/dev/null || true)"
+  if [ -n "$untracked" ]; then
+    while IFS= read -r f; do
+      [ -f "$f" ] || continue
+      diff_out="$diff_out
++++ b/$f
+@@ -0,0 +1,1 @@
+$(sed 's/^/+/' "$f")"
+    done <<EOF_UNTRACKED
+$untracked
+EOF_UNTRACKED
+  fi
+  if [ -z "$diff_out" ]; then
+    warn "nothing added — there is nothing to review"
+    return
+  fi
+
+  local file="" line=0 text
+  while IFS= read -r text; do
+    case "$text" in
+      '+++ b/'*) file="${text#+++ b/}"; continue ;;
+      '@@'*)
+        line="$(printf '%s' "$text" | sed -n 's/^@@ -[0-9,]* +\([0-9]*\).*/\1/p')"
+        [ -n "$line" ] || line=0
+        continue ;;
+      '+'*) ;;
+      *) continue ;;
+    esac
+    [ -n "$file" ] || continue
+    text="${text#+}"
+
+    case "$file" in *.ts|*.tsx|*.js|*.jsx) ;; *) line=$((line + 1)); continue ;; esac
+    case "$file" in *.test.*|*.spec.*|*.config.*) line=$((line + 1)); continue ;; esac
+
+    rev_check_import "$file" "$line" "$text"
+
+    # A barrel hides exactly the violations checked above.
+    case "$file" in
+      */features/*/index.ts) rev_row "$file" "$line" "a feature barrel hides dependency violations and breaks tree-shaking" ;;
+    esac
+
+    if printf '%s' "$text" | grep -qE ':[[:space:]]*any([^A-Za-z0-9_]|$)|<any>|as any([^A-Za-z0-9_]|$)'; then
+      rev_row "$file" "$line" "\`any\` — use \`unknown\` and narrow"
+    fi
+
+    if printf '%s' "$text" | grep -qE '^[[:space:]]*(//|/\*|\*)' && ! rev_comment_allowed "$text"; then
+      rev_row "$file" "$line" "a comment — rename or extract until the code does not need it"
+    fi
+
+    line=$((line + 1))
+  done <<EOF_DIFF
+$diff_out
+EOF_DIFF
+
+  head1 "What this cannot see"
+  note "server state duplicated into Context or a store"
+  note "a dependency added without asking"
+  note "whether a criterion is actually met"
+  note "these are read by a person — CLAUDE.md §6 lists the rest"
+
+  local verdict; verdict=$([ "$REV_BAD" -eq 0 ] && echo PASS || echo FAIL)
+  head1 "Paste this into the verification report"
+  printf '\n## Review Evidence\n\n'
+  printf 'Collected: %s\n' "$(date -Iseconds)"
+  printf 'Base: %s\n\n' "$base"
+  if [ "${#REV_ROWS[@]}" -gt 0 ]; then
+    printf '| File | Line | Finding |\n|---|---|---|\n'
+    printf '%s\n' "${REV_ROWS[@]}"
+  else
+    printf 'No violation of §1.2 or §5 in the added lines.\n'
+  fi
+  printf '\n**Verdict: %s**\n\n' "$verdict"
+  printf 'Only the added lines are read. A violation that was already there is\n'
+  printf 'not this change, and §4.4 forbids restructuring it as a side effect.\n\n'
+
+  [ "$REV_BAD" -eq 0 ] || exit 1
+}
+
 SPLIT_ROOT=".fw/split"
 
 split_sha() {
@@ -1925,6 +2110,7 @@ case "${1:-}" in
   backlog)  shift; cmd_backlog "$@" ;;
   pass)     shift; cmd_pass "$@" ;;
   split)    shift; cmd_split "$@" ;;
+  review)   shift; cmd_review "$@" ;;
   link)     shift; cmd_link "$@" ;;
   install)  shift; cmd_install "$@" ;;
   doctor)   shift; cmd_doctor "$@" ;;
@@ -1968,6 +2154,10 @@ fw — install this framework into a project
     epic <slug> [t]    start an epic
     hu <slug> [t]      add a story to it, appending its row to the epic table
     list               what exists and where each story stands (default)
+  fw review            check the added lines against the rules CLAUDE.md calls
+                       verifiable: the layer dependency rule, no comments, no
+                       \`any\`, no feature barrels. Only added lines — a violation
+                       that was already there is not this change
   fw split             prove a finished change was split into commits without
                        losing anything. What the units are is judgement —
                        skills/work-units; whether the split is sound is not

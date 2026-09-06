@@ -224,6 +224,8 @@ code, match what is there and flag the mismatch.
 
 ## 6. Definition of done
 
+- [ ] `fw review` clean on the added lines — it checks §1.2 and the mechanical
+      half of §5, and it is the only thing that does
 - [ ] Imports in every layer match §1.2 — no inward violations
 - [ ] `domain` has no framework, library, or I/O imports
 - [ ] No server state duplicated into Context or a store
