@@ -376,6 +376,23 @@ cmd_doctor() {
   done
   [ "$linked" = 0 ] && warn "no framework rules linked — run 'fw link'"
 
+  # A rule added to the repository after the last `fw link` is not installed,
+  # and its absence is invisible: it simply never loads, and the session that
+  # needed it looks exactly like a session where it did not apply. Checking only
+  # that the existing symlinks resolve verifies yesterday's install, never
+  # today's rules.
+  if [ "$linked" = 1 ]; then
+    local repo_rule repo_name unlinked=0
+    for repo_rule in "$FW_ROOT"/rules/*.md; do
+      [ -e "$repo_rule" ] || continue
+      repo_name="fw-$(basename "$repo_rule")"
+      [ -e "$CLAUDE_HOME/rules/$repo_name" ] && continue
+      bad "rule not linked: $repo_name"
+      unlinked=1
+    done
+    [ "$unlinked" = 1 ] && note "a rule added since the last link never loads — run 'fw link'"
+  fi
+
   local hook_script; hook_script="$(plan_hook_script)"
   if [ -f "$hook_script" ]; then
     ok "plan hook present: $(basename "$hook_script")"

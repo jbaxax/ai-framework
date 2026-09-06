@@ -10,7 +10,9 @@ paths:
 
 # Backend rules — NestJS
 
-Applies to personal full-stack projects. Frontend-only work never loads this.
+Applies to a backend **you deploy**. Reading a service you only consume is a
+different situation with a different rule — see `foreign-source.md`, because a
+decorator you can read is not behavior you have measured.
 
 | Concern | Default |
 |---|---|

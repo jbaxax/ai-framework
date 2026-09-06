@@ -58,6 +58,18 @@ standard than the tool's floor.
   unused imports, unreachable branches, shadowed names — that nobody is looking
   at, and a table that simply omits `lint` is indistinguishable from one whose
   lint passed. Report the gap; never delete the row to tidy the table.
+- **Source you do not deploy is a hypothesis; its running instance is the
+  evidence.** Reading a controller, a decorator, or an OpenAPI file proves that
+  somebody wrote it — not that the deployed binary was built from that commit,
+  that the guard is registered, that nothing short-circuits it, or that the
+  environment enables it. A claim about another system's behavior is
+  `UNVERIFIED` until a request was sent and its response recorded. See
+  `../../rules/foreign-source.md` and `../../docs/foreign-systems.md`.
+- **A probe needs a positive control.** A run where nothing blocked is
+  indistinguishable from a wrong host, an expired token, or a server that is
+  down. Include one endpoint known to block and read its row first; if the
+  control did not block, the run is void and the rest of the table proves
+  nothing.
 - **A pass count beside an error count is not a pass.** `Tests 297 passed` next
   to `Errors 1 error` means every assertion held while something threw outside
   one — a stub missing a method, a timer firing after teardown. Code did not run
@@ -108,6 +120,8 @@ tells you which one you have.
 | No test runner in the project at all | `PASS WITH WARNINGS`, stating that as the reason |
 | `fw evidence` table carries a `NOT RUN` row | `PASS WITH WARNINGS` at best, naming every check that did not run |
 | Test run reports unhandled errors, whatever its exit code | `FAIL` — the run did not do what its pass count claims |
+| Criterion asserts another system's behavior, read from its source, never probed | `FAIL` — `UNVERIFIED`, the source is a hypothesis |
+| Probe table reports nothing blocked, with no positive control in it | `FAIL` — `UNVERIFIED`, the instrument is unverified |
 | Project has no linter and the report does not say so | `FAIL` — `UNVERIFIED`, the table claims a check it never made |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
 | Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |

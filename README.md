@@ -154,7 +154,8 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `rules/auth.md` | Auth, login, session, guards, middleware — where a token may never live |
 | `rules/api-client.md` | Services, interceptors, `api/`, `infrastructure/` — the HTTP boundary |
 | `rules/angular.md` | Angular sources and `angular.json` |
-| `rules/backend.md` | NestJS controllers, modules, resolvers, `prisma/` |
+| `rules/backend.md` | NestJS controllers, modules, resolvers, `prisma/` — a backend **you deploy** |
+| `rules/foreign-source.md` | Controllers, guards, decorators, OpenAPI, `.proto` — reading a service you only consume, where the source is a hypothesis and the running instance is the evidence |
 | `tests/` | `mutate.test.sh` and `backlog.test.sh` — run them with `bash tests/*.test.sh` |
 | `docs/setup.md` | How to install the framework in a project |
 | `docs/workflow.md` | Where this sits in the lifecycle, and how to write the prompt |
@@ -162,6 +163,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `docs/clean-architecture.md` | How the layers work, and where each file goes |
 | `docs/conventions.md` | Naming and code rules for both stacks |
 | `docs/stack-defaults.md` | The stack, and why each default was chosen |
+| `docs/foreign-systems.md` | How to measure a backend you do not deploy without writing a row, and why reading its source is not evidence |
 | `skills/grilling/` | Interrogating a plan round by round until nothing is silently assumed |
 | `skills/requirements/` | Turning a chat message or user story into testable criteria |
 | `skills/epic/` | The boundary and standing decisions that span several slices |
