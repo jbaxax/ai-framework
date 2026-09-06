@@ -158,6 +158,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `rules/backend.md` | NestJS controllers, modules, resolvers, `prisma/` — a backend **you deploy** |
 | `rules/foreign-source.md` | Controllers, guards, decorators, OpenAPI, `.proto` — reading a service you only consume, where the source is a hypothesis and the running instance is the evidence |
 | `tests/` | `mutate.test.sh` and `backlog.test.sh` — run them with `bash tests/*.test.sh` |
+| `HANDOFF.md` | What changed in the last session, what to run on a machine that has not caught up, and what is waiting on a decision |
 | `docs/setup.md` | How to install the framework in a project |
 | `docs/workflow.md` | Where this sits in the lifecycle, and how to write the prompt |
 | `docs/daily-use.md` | What fires by itself, what you still have to say, and how to prove the hook is live |

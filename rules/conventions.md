@@ -8,6 +8,12 @@ paths:
 
 # Code conventions
 
+**Framework freshness, once per machine.** This rule arrived through a symlink,
+so its text is current the moment the framework repo is pulled — but a rule or
+skill added since the last `fw link` has no symlink at all and simply never
+loads. `fw doctor` names them and is silent when there is nothing to say. The
+repo's `HANDOFF.md` carries what changed and what is waiting on a decision.
+
 Loaded automatically when editing source. Full detail in `docs/conventions.md`
 and `../CLAUDE.md` §5. These are the ones that get broken from memory.
 
