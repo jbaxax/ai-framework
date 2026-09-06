@@ -177,6 +177,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `skills/testing/` | Vitest, what to test first, what not to test |
 | `skills/diagnosis/` | Finding a bug before theorising about it, and proving it is gone |
 | `skills/delegation/` | Whether to hand work to another agent, decided by what it costs to verify the answer rather than by how many files it touches |
+| `skills/gating/` | Who reaches a control, resolved before calling it ungated, gating it, or deleting it |
 | `templates/feature-template/` | A complete React feature, as reference |
 | `templates/feature-template-angular/` | The same feature in Angular v22 |
 | `templates/contract-verification/` | Executable check that a backend you do not own still matches its documentation |

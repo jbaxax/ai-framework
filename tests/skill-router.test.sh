@@ -121,6 +121,9 @@ check "writing a spec routes to testing" "$(real 'escribí un spec para el gate 
 check "asking what is next routes to backlog" "$(real 'qué sigo ahora')" "| backlog |"
 check "an exploration request routes to delegation" "$(real 'revisá todo el módulo de cobros')" "| delegation |"
 check "and so does naming a subagent" "$(real 'delegá esto a un subagente')" "| delegation |"
+check "a gating finding routes to gating" "$(real 'este control no tiene gate')" "| gating |"
+check "and so does asking who opens a screen" "$(real 'quién abre este modal')" "| gating |"
+check "in English too" "$(real 'who opens this modal')" "| gating |"
 empty "and an ordinary edit request stays silent" "$(real 'agregá un botón de guardar en el modal')"
 
 printf '\n%s passed, %s failed\n\n' "$PASS" "$FAIL"

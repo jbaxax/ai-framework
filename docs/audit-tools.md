@@ -82,6 +82,25 @@ Loosening that filter to `\[disabled\]` drops the finding count from 33 to 15
 and **looks like an improvement**. The case that pins it is what makes the
 difference between a fix and a regression that reads as progress.
 
+## The finding is not complete without its entry point
+
+An audit script reads one file at a time, so it can only ever see half of a
+gating claim. The other half is who reaches the control, and it is not written
+anywhere in that file.
+
+Every row it produces gets triaged into four columns before anyone acts on it:
+
+```markdown
+| Control | Código | Punto de entrada | Gate del punto de entrada |
+|---|---|---|---|
+| Eliminar cobro | collection.html:142 | menú Cobros | `can('cobros.view')` |
+| Eliminar cobro | collection-list.html:88 | menú Cobros | `can('cobros.view')` |
+```
+
+Two rows for one control is the sibling page that would otherwise be missed —
+one was fixed and the other called the same method with the same hole, three
+hours apart. `../skills/gating/SKILL.md` holds the triage and the four verdicts.
+
 ## Writing a case
 
 Two shapes, and the second is the one people skip:
