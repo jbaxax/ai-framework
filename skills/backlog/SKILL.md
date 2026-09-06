@@ -56,6 +56,17 @@ Three buckets. An item lives in exactly one.
 | Blocked | Cannot finish without an answer that is not yours to give | The answer arrives |
 | Not ready | No criteria yet, or gaps not identified | Run `../grilling/` if the decisions are unsettled, then `../requirements/` |
 
+## An artifact that describes work rots when the work moves without it
+
+A list is only worth reading if it is current, and nothing makes it current.
+`fw backlog` reports how many commits landed since the file was last touched,
+and `fw product list` does the same per story — one left at `Status: draft`
+while its code shipped is not documentation, it is a claim nobody checked.
+
+Give a story a `Files:` line and the question sharpens from *did anything
+happen* to *did its own code change*. The two are never reported in the same
+words, because a hint that reads like a finding is worse than no hint.
+
 **Blocked is not low priority.** It may be the most important item on the list.
 It is simply not startable, and mixing the two axes is what produces a sorted
 list you cannot act on.

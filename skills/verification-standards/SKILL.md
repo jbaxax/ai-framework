@@ -130,6 +130,7 @@ tells you which one you have.
 | Criterion asserts another system's behavior, read from its source, never probed | `FAIL` — `UNVERIFIED`, the source is a hypothesis |
 | Probe table reports nothing blocked, with no positive control in it | `FAIL` — `UNVERIFIED`, the instrument is unverified |
 | Verdict rests on a repo-owned audit script whose `audit` row is `NOT RUN` | `PASS WITH WARNINGS` at best — the instrument has nothing testing it |
+| Criteria cited from a story left at `draft` while its code shipped | `FAIL` — `UNVERIFIED`, the criteria were never reconciled with what was built |
 | Project has no linter and the report does not say so | `FAIL` — `UNVERIFIED`, the table claims a check it never made |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
 | Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |
