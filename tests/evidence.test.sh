@@ -3,8 +3,11 @@
 # report, so its two failure modes are the expensive kind: a check that silently
 # never ran, and a green row over a run that did not do what it claims.
 #
-# bin/fw is CRLF and a CRLF script does not parse under Linux bash, so each case
-# runs a normalised copy.
+# Each case runs a copy with CR stripped. bin/fw is LF now and .gitattributes
+# keeps it that way, but a Windows checkout with the wrong git config can still
+# hand this suite a CRLF file, and a CRLF script does not parse under Linux
+# bash — the suite would then fail for a reason that has nothing to do with the
+# behaviour under test.
 set -uo pipefail
 
 FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

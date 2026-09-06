@@ -3,8 +3,11 @@
 # failures of the install, so a check it does not make is a failure mode that
 # stays invisible — the exact shape it exists to remove.
 #
-# bin/fw is CRLF and a CRLF script does not parse under Linux bash, so each case
-# runs a normalised copy.
+# Each case runs a copy with CR stripped. bin/fw is LF now and .gitattributes
+# keeps it that way, but a Windows checkout with the wrong git config can still
+# hand this suite a CRLF file, and a CRLF script does not parse under Linux
+# bash — the suite would then fail for a reason that has nothing to do with the
+# behaviour under test.
 set -uo pipefail
 
 FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

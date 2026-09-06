@@ -2,3 +2,16 @@
 # diff them. Git's CRLF conversion would rewrite them on checkout and every
 # diff would report drift that does not exist.
 machine/*.json text eol=lf
+
+# bin/fw has no extension, so nothing here matched it and it was committed with
+# CRLF from a Windows editor. `#!/usr/bin/env bash\r` makes env look for a
+# binary literally named `bash\r`, so every fw command died on Linux with
+# `env: «bash\r»: No such file or directory` — including `fw link`, which is
+# what installs the rules and the prompt hook. A shell script is bytes an
+# interpreter reads, not a document, so its line endings are not a preference.
+bin/fw text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+
+# The Windows entry points are read by cmd.exe, which wants CRLF.
+*.cmd text eol=crlf

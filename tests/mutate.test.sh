@@ -3,8 +3,11 @@
 # that looked rigorous, so the tool that exists to distrust green checks is the
 # one that most needs a check of its own.
 #
-# bin/fw is CRLF and a CRLF script does not parse under Linux bash, so each case
-# runs a normalised copy. What is under test is cmd_mutate's classification, not
+# Each case runs a copy with CR stripped. bin/fw is LF now and .gitattributes
+# keeps it that way, but a Windows checkout with the wrong git config can still
+# hand this suite a CRLF file, and a CRLF script does not parse under Linux
+# bash — the suite would then fail for a reason that has nothing to do with the
+# behaviour under test. What is under test is cmd_mutate's classification, not
 # the file's line endings.
 set -uo pipefail
 
