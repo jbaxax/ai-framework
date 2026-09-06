@@ -99,7 +99,12 @@ out=$(route "$d" '{"cwd":"/home/x/src","prompt":"fix the widget"}')
 check "and the prompt field is still read" "$out" "| alpha |"
 
 # --- what is not a skill ----------------------------------------------------
-refute "an underscore directory is skipped" "$(route "$d" 'please fix the widget')" "_shared"
+# A router that printed nothing satisfies this refute without having read a
+# directory at all. Measured: against an empty skills dir it prints nothing and
+# the refute passes, proving only that the assertion cannot tell.
+out=$(route "$d" 'please fix the widget')
+check "the routing happened at all" "$out" "| alpha |"
+refute "and an underscore directory is skipped" "$out" "_shared"
 d4=$(mktemp -d)
 mkdir -p "$d4/plain"; printf -- '---\nname: plain\ndescription: "Does things with widgets."\n---\n' > "$d4/plain/SKILL.md"
 empty "a description with no Trigger list never matches" "$(route "$d4" 'widget')"

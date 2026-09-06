@@ -60,9 +60,16 @@ evidence. "Tests pass" is not evidence unless the run is shown.
 - **Verify the assertion is on a key that exists.** An assertion against a field
   the fixture never set is vacuously true and passes forever.
 - **Make any improvised check fail once before trusting it.** A `grep` over build
-  output, an audit script, a `jq` filter — nothing tests these, and a pattern that
-  matches nothing is indistinguishable from a clean run. Break what it watches,
-  confirm it goes red, then believe it. See `../skills/verification-standards/SKILL.md`.
+  output, an audit script, a `jq` filter, a probe against a live server — nothing
+  tests these, and a pattern that matches nothing is indistinguishable from a
+  clean run. Break what it watches, confirm it goes red, then believe it.
+  `../docs/breaking-checks.md` has the recipe per kind of check, and the three
+  ways a deliberate break comes back green while the check is still broken.
+- **Every negative assertion needs a positive one beside it.** A test that a
+  control is absent passes on a screen that rendered nothing, a probe where
+  nothing blocked cannot be told from a wrong host, and a regex that never fires
+  reports the same silence as a clean file. Prove the thing appears when it
+  should, then prove it is gone when it should not.
 - No conditional logic inside a test. Mock only true external boundaries.
 
 ## Proving it, not claiming it

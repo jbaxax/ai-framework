@@ -82,6 +82,8 @@ commit "$d" "otra cosa" seed.txt
 out=$(list "$d")
 # Both messages end in the same words, so the needle has to be the half that
 # differs — a refute on the shared tail passes for the wrong reason.
+# And without a positive assertion both refutes below pass on an empty listing.
+check "the story is listed at all" "$out" "checkout-01"
 refute "an unrelated commit leaves a scoped story alone" "$out" "touched its files"
 refute "and is not downgraded to the blunt question either" "$out" "commit(s) since it was written"
 

@@ -49,6 +49,13 @@ standard than the tool's floor.
   reports the same silence as a clean run. Break what it watches once, confirm it
   goes red, then trust it. An instrument that stayed quiet through a deliberate
   failure has proved nothing about any quiet run before it.
+- **A break that came back green has to be explained before it is believed.**
+  It means one of three things, and only the last is about the check: the
+  mutation never applied, it changed nothing observable, or a second code path
+  absorbed it. `../../docs/breaking-checks.md` names all three and how to tell
+  them apart. Reporting "I broke it and it stayed green, so the test is weak"
+  without ruling out the first two is a finding built on an unverified
+  instrument — the exact thing this rule exists to prevent.
 - Never assign a verdict for work you did not observe. If a check could not run,
   report it as `BLOCKED` with the reason — never as passing, and never as a
   warning that reads like passing.
