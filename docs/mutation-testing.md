@@ -23,7 +23,8 @@ The question `fw mutate` answers is the only one that settles it:
 1. Run the suite once. It **must** be green — against a red baseline every
    mutant reads as killed by a failure that was already there.
 2. Pick a source file and apply one small mutation: `&&` becomes `||`, `===`
-   becomes `!==`, `return true` becomes `return false`.
+   becomes `!==`, `return true` becomes `return false` — or, with `--replace`,
+   the exact string you named.
 3. Run the suite again.
 4. Restore the file, byte for byte.
 5. Repeat.
@@ -60,6 +61,60 @@ score = KILLED / (KILLED + SURVIVED)
 That the compiler caught the edit is real protection — it is just not evidence
 about your suite, which is the only question this command asks.
 
+## The mutation an operator cannot express
+
+An operator flip asks one question: *is this line watched at all?* That is the
+right question for arithmetic and for a comparison. It is the wrong question for
+a rule whose failure mode is not a crash but a **different, equally well-typed
+answer**:
+
+```ts
+can('orders.delete')   →   can('orders.update')
+config.editable        →   true
+.filter(m => reachable(m.route))   →   .filter(() => true)
+```
+
+Every one of those compiles, type-checks, passes review, and hands a destructive
+button to the wrong role. No operator sits between the two sides — they are the
+same call with a different argument — so the sweep will never produce the mutant,
+and a suite that would not survive it reports a clean run.
+
+`--replace` points the same machinery at a named edit:
+
+```bash
+fw mutate --replace "can('orders.delete')" --with "can('orders.update')" \
+          --spec destructive-gating.spec.ts
+```
+
+Backup, mutation, one scoped suite run, restore, and the same KILLED / SURVIVED /
+NOT VIABLE verdict. Three differences from the operator sweep, each with a
+reason:
+
+- **It searches templates.** An Angular or Blade gate lives in the `.html`, and a
+  sweep of `.ts` alone would report that file clean without opening it.
+- **It budgets per occurrence** — `--max` and `--per-file` default to 50 instead
+  of 10 and 3. You named this string deliberately, and the duplicated gate, the
+  one copied into a second component, is exactly the one that hides. The
+  forecast counts the real occurrences first, so a string appearing twice is
+  never announced as fifty suite runs.
+- **It refuses to be silently empty.** A string that never appears is reported as
+  such and exits non-zero. Occurrences that fall only on comment, import, or type
+  lines are reported separately, because "the string is not here" and "the string
+  is here but carries no behavior" send you to different places.
+
+### `--spec` and the empty run
+
+A named mutation usually has one spec that should be watching it, and running the
+whole suite for each occurrence is wasted minutes. `--spec` narrows the run.
+
+How a package manager forwards an argument is a guess, so the composed command is
+not trusted. Before the first mutant, the baseline must report an **actual test
+run**: a runner that matched no spec file exits zero, prints nothing recognisable,
+and is byte-identical to a passing suite. Left unchecked, every mutant would come
+back SURVIVED against a suite that never ran — a report naming real files and real
+lines while proving nothing. That is the exact false green this whole document
+exists to prevent, so the run stops there instead.
+
 ## Usage
 
 ```bash
@@ -68,7 +123,30 @@ fw mutate --max 25                 # more mutations, one full suite run each
 fw mutate --per-file 8             # allow more mutants in a single file (default 3)
 fw mutate src/domain/totals.ts     # one file
 fw mutate --test-cmd 'bun test src/domain'   # narrow the suite
+fw mutate --replace "can('a.delete')" --with "can('a.update')"   # a named edit
+fw mutate --replace "isOwner()" --with "true" --spec roles.spec.ts
 ```
+
+`--replace` requires `--with`, and refuses a replacement identical to the
+original: that edit changes nothing, so a green suite after it proves nothing.
+
+### The check does not have to be a test suite
+
+`--test-cmd` takes any command that goes red when something is wrong, and the
+thing being validated is often not a spec:
+
+```bash
+fw mutate --replace "@if (can('cobros.delete')) " --with "" \
+          --test-cmd 'python3 .fw/audit/audit.py'
+```
+
+That run asks whether the **audit script** notices a gate disappearing — the same
+question, pointed at the instrument instead of the suite. An audit script decides
+which controls get reviewed at all, so a blind spot in it is worth more than a
+blind spot in any single test. `rules/testing.md` already requires an improvised
+check to fail once before it is trusted; this is that requirement, mechanised.
+
+An empty `--with` deletes the string and the table reports it as `<removed>`.
 
 Every occurrence of an operator is a candidate, not only the first one in the
 file. Duplicated logic — the same guard copied into a second method — is exactly
@@ -153,3 +231,5 @@ act on beat four hundred you scroll past.
   that survives review
 - `../skills/verification-standards/SKILL.md` — what counts as proof of done
 - `../bin/fw` — `cmd_mutate`
+- `../tests/mutate.test.sh` — the suite for this command, including a case for
+  every false verdict it has produced

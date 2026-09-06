@@ -327,10 +327,21 @@ mechanical check that depends on nobody's opinion:
 ```bash
 fw mutate                       # 10 mutations, files with a colocated test first
 fw mutate src/domain/totals.ts  # one file
+fw mutate --replace "can('orders.delete')" --with "can('orders.update')" \
+          --spec destructive-gating.spec.ts
 ```
 
 Each mutant flips one operator — `&&` to `||`, `===` to `!==`, `return true` to
-`return false` — reruns the suite, then restores the file. `KILLED` means a test
+`return false` — reruns the suite, then restores the file.
+
+`--replace` swaps a named string instead, for the edit an operator cannot
+express: a gate moving to a **different but equally valid** permission, a filter
+predicate becoming `true`, a guard reading someone else's flag. Both sides are
+the same operator, so the sweep will never produce it, and it is precisely the
+mutation a permission test must survive. It searches templates too — an Angular
+gate lives in the `.html`. `--spec` narrows the run to the one spec that should
+be watching, and refuses to continue if that scoped command exits zero without
+reporting a test run. `KILLED` means a test
 noticed. `SURVIVED` means that line is unprotected **with a green check over
 it**, which is worse than untested, because an untested line does not lie to
 you. `NOT VIABLE` means the compiler rejected the edit and no test ever ran: it

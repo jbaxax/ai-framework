@@ -69,7 +69,16 @@ evidence. "Tests pass" is not evidence unless the run is shown.
 
 ```bash
 fw mutate src/domain/totals.ts   # break the code on purpose; must go red
+fw mutate --replace "can('orders.delete')" --with "can('orders.update')" \
+          --spec destructive-gating.spec.ts
 ```
+
+The operator sweep asks whether a line is watched at all. `--replace` asks the
+question a domain rule raises — does the suite notice this gate, this filter,
+this permission becoming a **different but equally valid** one. No operator flip
+can express that: both sides are the same operator. Reach for the named form on
+permission gates, feature flags, and any predicate whose wrong answer is still a
+well-typed answer.
 
 `SURVIVED` is production code you can break with the suite green. `NOT VIABLE`
 means the compiler rejected the edit and no test ran — excluded from the score.
