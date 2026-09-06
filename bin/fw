@@ -469,6 +469,28 @@ runner() {
 
 EV_ROWS=()
 EV_FAILED=0
+EV_GAPS=0
+
+# A check that could not run is reported in the table, with its reason, and not
+# only on the terminal. The terminal scrolls away; the table is what gets pasted
+# into the report, and a table that simply omits `lint` reads as a project whose
+# lint passed. `../skills/verification-standards/SKILL.md`: never as a warning
+# that reads like passing.
+#
+# An optional artifact is still listed — a reader cannot tell "no contracts run"
+# from "contracts passed" otherwise — but it does not lower the verdict, or
+# every frontend project would sit permanently at PASS WITH WARNINGS and the
+# signal would mean nothing.
+ev_missing() {
+  local label="$1" reason="$2" optional="${3:-}"
+  EV_ROWS+=("| $label | — | — | **NOT RUN** — $reason |")
+  if [ -n "$optional" ]; then
+    note "$label — NOT RUN — $reason"
+  else
+    EV_GAPS=$((EV_GAPS + 1))
+    warn "$label — NOT RUN — $reason"
+  fi
+}
 
 summarize() {
   local out="$1" rc="$2" plain line count
@@ -476,9 +498,21 @@ summarize() {
 
   line=$(printf '%s\n' "$plain" | grep -E '^[[:space:]]*Tests[[:space:]]+[0-9]' | tail -1 || true)
   if [ -n "$line" ]; then
-    printf '%s' "$(printf '%s' "$line" \
+    line="$(printf '%s' "$line" \
       | sed 's/^[[:space:]]*Tests[[:space:]]*//; s/[[:space:]]*|[[:space:]]*/, /g' \
       | tr -s ' ')"
+    # `Tests 297 passed` beside `Errors 1 error` is the runner reporting that
+    # every assertion held while something threw outside one — a stub missing a
+    # method, a timer firing after teardown. Code did not run the way the test
+    # believed it did. Pasted as "297 passed" it reads as success, so the count
+    # travels with it.
+    count=$(printf '%s\n' "$plain" \
+      | sed -n 's/^[[:space:]]*Errors[[:space:]]\{1,\}\([0-9]\{1,\}\)[[:space:]]\{1,\}error.*/\1/p' | tail -1)
+    if [ -n "$count" ] && [ "$count" != 0 ]; then
+      printf '%s, %s unhandled error(s)' "$line" "$count"
+    else
+      printf '%s' "$line"
+    fi
     return
   fi
 
@@ -514,12 +548,21 @@ run_check() {
 
   local summary; summary="$(summarize "$out" "$rc")"
 
-  if [ "$rc" -ne 0 ]; then EV_FAILED=1; fi
+  # The exit code is one signal, not the verdict. A runner that reports an
+  # unhandled error has told you code ran differently than the test believed,
+  # and whether it also chose to exit non-zero is that runner's decision, not
+  # evidence. Reading the result rather than the exit code is the reason this
+  # table exists at all.
+  local failed=0
+  [ "$rc" -ne 0 ] && failed=1
+  case "$summary" in *"unhandled error"*) failed=1 ;; esac
+  [ "$failed" -eq 1 ] && EV_FAILED=1
+
   EV_ROWS+=("| $label | \`$command\` | $rc | $summary |")
 
-  if [ "$rc" -eq 0 ]; then ok "$label — exit 0 — $summary"
+  if [ "$failed" -eq 0 ]; then ok "$label — exit 0 — $summary"
   else
-    bad "$label — exit $rc"
+    bad "$label — exit $rc — $summary"
     sed 's/^/      /' "$out" | tail -12
   fi
   rm -f "$out"
@@ -542,29 +585,44 @@ cmd_evidence() {
 
   if pkg_script typecheck; then run_check "typecheck" "$rt run typecheck"
   elif [ -f tsconfig.json ]; then run_check "typecheck" "${rt}x tsc --noEmit"
-  else warn "no typecheck available"; fi
+  else ev_missing "typecheck" "no typecheck script and no tsconfig.json"; fi
 
+  # A project with no linter has a whole class of defect nobody is looking at —
+  # unused imports, unreachable branches, shadowed names — and the table has to
+  # say so, because "no lint row" and "lint passed" are indistinguishable to
+  # whoever reads the report.
   if pkg_script lint; then run_check "lint" "$rt run lint"
-  else warn "no lint script in package.json"; fi
+  else ev_missing "lint" "no lint script in package.json"; fi
 
   # A build is not a typecheck. tsc --noEmit never sees an Angular template
   # error, an unresolved asset, or anything the bundler alone resolves — and a
   # broken build reported green is what this table exists to make impossible.
   if [ "$skip_build" = 1 ]; then
-    warn "build skipped (--no-build)"
+    ev_missing "build" "skipped by --no-build"
   elif pkg_script build; then run_check "build" "$rt run build"
-  else warn "no build script in package.json"; fi
+  else ev_missing "build" "no build script in package.json"; fi
 
   if pkg_script test; then run_check "tests" "$rt run test"
-  else warn "no test script in package.json"; fi
+  else ev_missing "tests" "no test script in package.json"; fi
 
+  local contracts_ran=0
   for path in .fw/contracts/verify.ts contracts/verify.ts; do
     [ -f "$path" ] || continue
     run_check "contracts" "$rt run $path"
+    contracts_ran=1
     break
   done
+  if [ "$contracts_ran" -eq 0 ]; then
+    ev_missing "contracts" "no .fw/contracts/verify.ts" optional
+  fi
 
-  local verdict; verdict=$([ "$EV_FAILED" -eq 0 ] && echo PASS || echo FAIL)
+  # PASS means every check ran and passed. It cannot also mean "everything that
+  # happened to run passed", or the word stops carrying the only claim anyone
+  # reads it for.
+  local verdict
+  if [ "$EV_FAILED" -ne 0 ]; then verdict=FAIL
+  elif [ "$EV_GAPS" -gt 0 ]; then verdict="PASS WITH WARNINGS"
+  else verdict=PASS; fi
 
   head1 "Paste this into the verification report"
   printf '\n## Verification Evidence\n\n'
@@ -573,6 +631,11 @@ cmd_evidence() {
   printf '| Check | Command | Exit | Result |\n|---|---|---|---|\n'
   if [ "${#EV_ROWS[@]}" -gt 0 ]; then printf '%s\n' "${EV_ROWS[@]}"; fi
   printf '\n**Verdict: %s**\n\n' "$verdict"
+  if [ "$EV_GAPS" -gt 0 ]; then
+    printf '%s check(s) could not run, listed above as NOT RUN. A check that did\n' "$EV_GAPS"
+    printf 'not run is not a check that passed, so this verdict claims less than\n'
+    printf 'PASS and those rows say how much less.\n\n'
+  fi
 
   [ "$EV_FAILED" -eq 0 ] || exit 1
 }
@@ -1340,8 +1403,12 @@ fw — install this framework into a project
     --personal         force normal install
     --dry-run          show the plan, write nothing
   fw doctor            verify the install and that nothing personal leaks into git
-  fw evidence          run typecheck, tests and contracts; print a pasteable
-                       evidence table. Exits non-zero if any check fails
+  fw evidence          run typecheck, lint, build, tests and contracts; print a
+                       pasteable evidence table. A check the project does not
+                       have is a NOT RUN row, never a silent omission, and the
+                       verdict drops to PASS WITH WARNINGS. Exits non-zero if
+                       any check fails
+    --no-build         skip the build; it is marked NOT RUN in the table
   fw mutate [files]    break the production code on purpose and require the
                        suite to go red. A green suite proves the tests ran, not
                        that they watch anything. Exits non-zero if any mutant

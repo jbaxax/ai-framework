@@ -52,6 +52,18 @@ standard than the tool's floor.
 - Never assign a verdict for work you did not observe. If a check could not run,
   report it as `BLOCKED` with the reason — never as passing, and never as a
   warning that reads like passing.
+- **A check that did not run never becomes a check that passed.** `fw evidence`
+  lists every absent check as a `NOT RUN` row and caps the verdict at
+  `PASS WITH WARNINGS`. A project with no linter has a whole class of defect —
+  unused imports, unreachable branches, shadowed names — that nobody is looking
+  at, and a table that simply omits `lint` is indistinguishable from one whose
+  lint passed. Report the gap; never delete the row to tidy the table.
+- **A pass count beside an error count is not a pass.** `Tests 297 passed` next
+  to `Errors 1 error` means every assertion held while something threw outside
+  one — a stub missing a method, a timer firing after teardown. Code did not run
+  the way the test believed it did. Some runners exit non-zero for this and some
+  do not, which is exactly why the verdict comes from the result and never from
+  the exit code.
 
 ## The instrument is part of the evidence
 
@@ -94,6 +106,9 @@ tells you which one you have.
 | Criterion about backend response shape, no contract run | `FAIL` — the wrong evidence layer was used |
 | Criterion about observable UI behavior, no browser observation reported | `FAIL` — no test layer can see it |
 | No test runner in the project at all | `PASS WITH WARNINGS`, stating that as the reason |
+| `fw evidence` table carries a `NOT RUN` row | `PASS WITH WARNINGS` at best, naming every check that did not run |
+| Test run reports unhandled errors, whatever its exit code | `FAIL` — the run did not do what its pass count claims |
+| Project has no linter and the report does not say so | `FAIL` — `UNVERIFIED`, the table claims a check it never made |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
 | Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |
 | Project has a build script and the table carries no `build` row | `FAIL` — `UNVERIFIED`, a typecheck did not prove it builds |
@@ -115,7 +130,7 @@ tells you which one you have.
 
 A verification report carries, in this order:
 
-1. The `fw evidence` table, verbatim
+1. The `fw evidence` table, verbatim, including its `NOT RUN` rows
 2. Criterion → evidence row → where the evidence lives
 3. Criteria with no evidence, named
 4. Verdict, with the gate row that produced it
