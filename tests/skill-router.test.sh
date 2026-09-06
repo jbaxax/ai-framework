@@ -115,6 +115,8 @@ check "a 403 report routes to diagnosis" "$(real 'transportista me deja crear pe
 check "asking to verify routes to verification-standards" "$(real 'verificá que esto está bien antes de cerrar')" "| verification-standards |"
 check "writing a spec routes to testing" "$(real 'escribí un spec para el gate de permisos')" "| testing |"
 check "asking what is next routes to backlog" "$(real 'qué sigo ahora')" "| backlog |"
+check "an exploration request routes to delegation" "$(real 'revisá todo el módulo de cobros')" "| delegation |"
+check "and so does naming a subagent" "$(real 'delegá esto a un subagente')" "| delegation |"
 empty "and an ordinary edit request stays silent" "$(real 'agregá un botón de guardar en el modal')"
 
 printf '\n%s passed, %s failed\n\n' "$PASS" "$FAIL"

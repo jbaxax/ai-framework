@@ -34,6 +34,10 @@ nobody wrote down.
 | A bug, a correction, something broken | `skills/diagnosis` — a red reproduction before any theory of the cause. No user story |
 | Maintenance or refactor of existing code | Read it first. Approval tests before production code is touched; `skills/testing` decides the mode |
 
+Name the topology in the same line: what stays inline, what goes to one worker.
+Decide it by what it costs to verify what comes back — code is cheap, a claim
+about a library is not — never by counting files. `skills/delegation`.
+
 Name the blast radius before proposing steps. Where `graphify-out/` exists, ask
 the graph instead of grepping: `graphify affected "<file or symbol>"` returns the
 real dependents from the AST with file and line, at zero tokens, and was measured
