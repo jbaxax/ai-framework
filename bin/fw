@@ -796,6 +796,23 @@ bl_emit() {
 }
 
 bl_report() {
+  # The backlog is an artifact like any other: it describes work, and it is
+  # stale when the work moved after it did. It lives outside any repository, so
+  # the only question that can be asked here is the blunt one — has anything
+  # shipped since you last touched this list?
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    local bl_mt moved_since
+    bl_mt="$(stat -c %Y "$BACKLOG_FILE" 2>/dev/null || stat -f %m "$BACKLOG_FILE" 2>/dev/null || echo 0)"
+    if [ "$bl_mt" != 0 ]; then
+      moved_since="$(git log --since="@$((bl_mt + 1))" --oneline 2>/dev/null | wc -l | tr -d ' ')"
+      if [ -n "$moved_since" ] && [ "$moved_since" -gt 0 ]; then
+        head1 "This list has not moved in $moved_since commit(s)"
+        note "$(basename "$BACKLOG_FILE") was last touched before them, so Ready may already"
+        note "be done and Blocked may already be answered. Read it before trusting it."
+      fi
+    fi
+  fi
+
   if [ $((ready + blocked + notready)) -eq 0 ]; then
     note "the backlog is empty"
   elif [ "$ready" -eq 0 ]; then
@@ -1259,6 +1276,39 @@ prod_title_of() {
   sed -n 's/^#[[:space:]]*//p' "$1" 2>/dev/null | head -1
 }
 
+# An artifact that describes work is stale when the work moved after it did.
+# That is mechanical: no judgement about whether the text is still true, only
+# whether anything happened since it was written.
+prod_mtime() {
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+}
+
+# A story may name the paths it is about. When it does the question sharpens
+# from "did anything happen" to "did its own code change", which is the
+# difference between a hint and a finding — so the two are never reported with
+# the same words.
+prod_files_of() {
+  sed -n 's/^Files:[[:space:]]*//p' "$1" 2>/dev/null | head -1
+}
+
+prod_stale_of() {
+  local file="$1" mt paths
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  mt="$(prod_mtime "$file")"
+  [ "$mt" != 0 ] || return 0
+  paths="$(prod_files_of "$file")"
+  # --since is inclusive, so a commit made in the same second as the artifact
+  # would count as having come after it. An artifact written alongside its
+  # commit is current, not stale.
+  mt=$((mt + 1))
+  if [ -n "$paths" ]; then
+    # shellcheck disable=SC2086
+    git log --since="@$mt" --oneline -- $paths 2>/dev/null | wc -l | tr -d ' '
+  else
+    git log --since="@$mt" --oneline 2>/dev/null | wc -l | tr -d ' '
+  fi
+}
+
 prod_require_root() {
   if [ ! -d "$PRODUCT_ROOT" ]; then
     bad "no $PRODUCT_ROOT here"
@@ -1416,7 +1466,7 @@ prod_list() {
   prod_require_root
   head1 "Product artifacts in $(pwd)"
 
-  local found=0 epic_file slug title status story sid sstatus stitle n
+  local found=0 epic_file slug title status story sid sstatus stitle n moved stale=0
   for epic_file in "$PRODUCT_ROOT"/epics/*.md; do
     [ -f "$epic_file" ] || continue
     found=1
@@ -1434,6 +1484,23 @@ prod_list() {
       stitle="${stitle#"$sid" — }"
       sstatus="$(prod_status_of "$story")"
       printf '    %-28s %-10s %s\n' "$sid" "${sstatus:-draft}" "${DIM}${stitle}${OFF}"
+
+      # A finished story is allowed to sit still; that is what finished means.
+      case "${sstatus:-draft}" in
+        done|Done|DONE|archived|Archived) ;;
+        *)
+          moved="$(prod_stale_of "$story")"
+          if [ -n "$moved" ] && [ "$moved" -gt 0 ]; then
+            stale=$((stale + 1))
+            if [ -n "$(prod_files_of "$story")" ]; then
+              bad "      $moved commit(s) touched its files since it was written, and it still says ${sstatus:-draft}"
+            else
+              warn "      $moved commit(s) since it was written, and it still says ${sstatus:-draft}"
+              note "      declare  Files: <paths>  in it to ask about its own code instead of the whole repo"
+            fi
+          fi
+          ;;
+      esac
     done
     [ "$n" -eq 0 ] && note "no stories yet — fw product hu $slug"
   done
@@ -1454,6 +1521,12 @@ prod_list() {
     orphan=1
     bad "$sid — no $PRODUCT_ROOT/epics/$slug.md"
   done
+  if [ "$stale" -gt 0 ]; then
+    head1 "$stale artifact(s) describe work that moved without them"
+    note "a story left at draft while its code shipped is not documentation,"
+    note "it is a claim nobody checked. Update the status or the criteria."
+  fi
+
   [ "$orphan" -eq 0 ] || return 1
 }
 

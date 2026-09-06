@@ -2,6 +2,7 @@
 
 Epic: {{EPIC}}
 Status: draft
+Files:
 Created: {{DATE}}
 
 ## User story
