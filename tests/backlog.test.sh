@@ -52,6 +52,30 @@ out=$(FW_STALE_DAYS=3 run "$(backlog "Viejo (preguntado $(ago 9))")")
 check "a stale Spanish entry is flagged"   "$out" '9d —'
 check "and counted in the follow-up total" "$out" 'question\(s\) unanswered for 3\+ days'
 
+# --- an item long enough to carry its context wraps ---------------------------
+# A per-line reader drops everything after the first line, so the date on the
+# continuation is lost and the wait reads as "no date" — the same silent loss
+# this suite was written for, one line further down.
+wrapped() {
+  local f; f="$(mktemp)"
+  cat > "$f" <<INNER
+## Blocked
+- [erp] Anular una factura emitida — esperando: quién tiene permiso para
+  hacerlo, y si queda asiento contable (preguntado $(ago 4))
+- [acme] Actualización masiva de precios (preguntado $(ago 1))
+INNER
+  printf '%s' "$f"
+}
+out=$(run "$(wrapped)")
+check "a wrapped item keeps the date on its continuation line" "$out" '4d —'
+refute "and no longer reads as undated"                        "$out" 'no date'
+check "the item that fits on one line is unaffected"           "$out" '1d —'
+check "the continuation is folded in, not counted as an item"  "$out" 'blocked 2'
+refute "and the continuation never becomes its own row"        "$out" 'hacerlo, y si queda'
+
+# --- the display stays one line -----------------------------------------------
+check "the row shows the first line" "$out" 'Anular una factura emitida'
+
 rm -f "$FW_BIN"
 printf '\n%s passed, %s failed\n\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
