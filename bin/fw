@@ -710,6 +710,191 @@ cmd_evidence() {
 # what was startling, never what was frequent.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# fw split
+#
+# Splitting a finished piece of work into reviewable commits is two jobs. What
+# the units are is judgement — `skills/work-units/`. Whether the split lost
+# anything is not, and it is the half that goes wrong silently: a file dropped
+# from a `git add`, a hunk staged into the wrong commit, an intermediate commit
+# that does not even parse. Nothing about a clean `git log` reveals any of them.
+#
+# Both checks here were invented by hand during a real four-way split and are
+# the only reason it could be claimed correct rather than hoped correct.
+# ---------------------------------------------------------------------------
+
+SPLIT_ROOT=".fw/split"
+
+split_sha() {
+  sha256sum "$1" 2>/dev/null | cut -d' ' -f1 || shasum -a 256 "$1" 2>/dev/null | cut -d' ' -f1
+}
+
+split_dirty_files() {
+  { git diff --name-only 2>/dev/null
+    git diff --name-only --cached 2>/dev/null
+    git ls-files --others --exclude-standard 2>/dev/null
+  } | sed '/^$/d' | sort -u
+}
+
+# A file that cannot be parsed at a commit is a commit nobody can check out and
+# run. Only languages with a real syntax check are claimed; the rest is reported
+# as not checked rather than quietly counted as fine.
+# 99 means "no checker for this kind of file", never "the check failed". A
+# plain 2 collided with bash -n, which exits 2 on a syntax error — so a broken
+# script was being counted as unverifiable and the run passed.
+SPLIT_NO_CHECKER=99
+
+split_syntax_check() {
+  local file="$1" content="$2"
+  case "$file" in
+    *.sh|*.bash) bash -n "$content" 2>&1; return $? ;;
+    *.py) python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$content" 2>&1; return $? ;;
+    *.js|*.mjs|*.cjs)
+      command -v node >/dev/null 2>&1 || return "$SPLIT_NO_CHECKER"
+      node --check "$content" 2>&1; return $? ;;
+    *.json) python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$content" 2>&1; return $? ;;
+    *) return "$SPLIT_NO_CHECKER" ;;
+  esac
+}
+
+split_start() {
+  git rev-parse --git-dir >/dev/null 2>&1 || { bad "not a git repository"; exit 1; }
+  local files; files="$(split_dirty_files)"
+  if [ -z "$files" ]; then
+    bad "nothing to split — the working tree is clean"
+    exit 1
+  fi
+
+  mkdir -p "$SPLIT_ROOT"
+  : > "$SPLIT_ROOT/files"
+  local f n=0
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    printf '%s  %s\n' "$(split_sha "$f")" "$f" >> "$SPLIT_ROOT/files"
+    n=$((n + 1))
+  done <<EOF_F
+$files
+EOF_F
+  git rev-parse HEAD > "$SPLIT_ROOT/base" 2>/dev/null || echo "" > "$SPLIT_ROOT/base"
+
+  head1 "Split baseline recorded"
+  ok "$n file(s) fingerprinted"
+  ok "base commit $(cut -c1-8 < "$SPLIT_ROOT/base")"
+  note "split into work units now — skills/work-units decides what those are"
+  note "then:  fw split verify"
+}
+
+split_verify() {
+  git rev-parse --git-dir >/dev/null 2>&1 || { bad "not a git repository"; exit 1; }
+  if [ ! -f "$SPLIT_ROOT/files" ]; then
+    bad "no baseline — run 'fw split start' before splitting, not after"
+    note "without it there is nothing to compare against, and a lost file is invisible"
+    exit 1
+  fi
+
+  local base; base="$(cat "$SPLIT_ROOT/base" 2>/dev/null)"
+  head1 "Verifying the split"
+
+  # 1. The content that existed before the split still exists, byte for byte.
+  local drift=0 missing=0 total=0 sha file now
+  while read -r sha file; do
+    [ -n "$file" ] || continue
+    total=$((total + 1))
+    if [ ! -f "$file" ]; then
+      bad "gone: $file"
+      missing=$((missing + 1))
+      continue
+    fi
+    now="$(split_sha "$file")"
+    if [ "$now" != "$sha" ]; then
+      bad "changed since the baseline: $file"
+      drift=$((drift + 1))
+    fi
+  done < "$SPLIT_ROOT/files"
+  if [ "$drift" -eq 0 ] && [ "$missing" -eq 0 ]; then
+    ok "$total file(s) identical to the baseline — the split lost nothing"
+  else
+    note "a split may only move work between commits, never alter it. Fix the"
+    note "content first; a verified split of the wrong bytes proves nothing."
+  fi
+
+  # 2. Nothing was left behind uncommitted.
+  local left; left="$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+  if [ "$left" -eq 0 ]; then
+    ok "working tree clean — every file reached a commit"
+  else
+    bad "$left path(s) still uncommitted"
+    git status --porcelain | sed 's/^/      /'
+  fi
+
+  # 3. Every intermediate commit is checkable on its own. A split whose middle
+  #    commits do not parse is a history nobody can bisect.
+  head1 "Intermediate commits"
+  local commits c checked=0 broken=0 skipped=0 tmp rc out
+  commits="$(git log --format=%h "$base"..HEAD 2>/dev/null | tac)"
+  if [ -z "$commits" ]; then
+    warn "no commits since the baseline"
+  else
+    tmp="$(mktemp)"
+    for c in $commits; do
+      local bad_here=0
+      while read -r sha file; do
+        [ -n "$file" ] || continue
+        git show "$c:$file" > "$tmp" 2>/dev/null || continue
+        # set -e treats a failing command substitution in an assignment as
+        # fatal, and a file that does not parse is exactly that — the run would
+        # die at the first broken commit instead of reporting it.
+        set +e
+        out="$(split_syntax_check "$file" "$tmp" 2>&1)"; rc=$?
+        set -e
+        case "$rc" in
+          0) checked=$((checked + 1)) ;;
+          "$SPLIT_NO_CHECKER") skipped=$((skipped + 1)) ;;
+          *) bad "$c — $file does not parse"
+             printf '%s\n' "$out" | sed 's/^/        /' | head -3
+             broken=$((broken + 1)); bad_here=1 ;;
+        esac
+      done < "$SPLIT_ROOT/files"
+      [ "$bad_here" -eq 0 ] && ok "$c — $(git log -1 --format=%s "$c" | cut -c1-56)"
+    done
+    rm -f "$tmp"
+    note "$checked file version(s) parsed, $skipped not checkable by syntax alone"
+  fi
+
+  local verdict
+  if [ "$drift" -eq 0 ] && [ "$missing" -eq 0 ] && [ "$left" -eq 0 ] && [ "$broken" -eq 0 ]; then
+    verdict=PASS
+  else
+    verdict=FAIL
+  fi
+
+  head1 "Paste this into the verification report"
+  printf '\n## Split Evidence\n\n'
+  printf 'Collected: %s\n' "$(date -Iseconds)"
+  printf 'Base: %s\n' "$(printf '%s' "$base" | cut -c1-8)"
+  printf 'Commits: %s\n\n' "$(printf '%s' "$commits" | wc -w | tr -d ' ')"
+  printf '| Check | Result |\n|---|---|\n'
+  printf '| content identical to baseline | %s of %s |\n' "$((total - drift - missing))" "$total"
+  printf '| nothing left uncommitted | %s path(s) remaining |\n' "$left"
+  printf '| intermediate commits parse | %s checked, %s broken, %s not checkable |\n' \
+    "$checked" "$broken" "$skipped"
+  printf '\n**Verdict: %s**\n\n' "$verdict"
+
+  if [ "$verdict" = PASS ]; then
+    rm -f "$SPLIT_ROOT/files" "$SPLIT_ROOT/base"
+    note "baseline cleared"
+  fi
+  [ "$verdict" = PASS ] || exit 1
+}
+
+cmd_split() {
+  case "${1:-}" in
+    start)  shift; split_start "$@" ;;
+    verify) shift; split_verify "$@" ;;
+    *) bad "usage: fw split start | fw split verify"; exit 2 ;;
+  esac
+}
+
 PASS_ROOT=".fw/pass"
 
 pass_base() {
@@ -1739,6 +1924,7 @@ BLOCKED_LINES=()
 case "${1:-}" in
   backlog)  shift; cmd_backlog "$@" ;;
   pass)     shift; cmd_pass "$@" ;;
+  split)    shift; cmd_split "$@" ;;
   link)     shift; cmd_link "$@" ;;
   install)  shift; cmd_install "$@" ;;
   doctor)   shift; cmd_doctor "$@" ;;
@@ -1782,6 +1968,12 @@ fw — install this framework into a project
     epic <slug> [t]    start an epic
     hu <slug> [t]      add a story to it, appending its row to the epic table
     list               what exists and where each story stands (default)
+  fw split             prove a finished change was split into commits without
+                       losing anything. What the units are is judgement —
+                       skills/work-units; whether the split is sound is not
+    start              fingerprint the working tree before splitting
+    verify             content identical, nothing left behind, every
+                       intermediate commit parses on its own
   fw pass              the manual pass over the running app: what changed, which
                        screens it lands on, what only a person can check
     note "<text>"      record a finding while looking at it
