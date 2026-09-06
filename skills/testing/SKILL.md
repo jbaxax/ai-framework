@@ -1,6 +1,6 @@
 ---
 name: testing
-description: "Trigger: test, unit test, spec file, vitest, coverage, mock, assertion, TDD. Resolve the testing mode for the current context, then apply this framework's rules on what to test and how to assert."
+description: "Trigger: test, unit test, spec, spec file, vitest, coverage, mock, assertion, TDD, probar, prueba, cobertura, escribí un test, sin test. Resolve the testing mode for the current context, then apply this framework's rules on what to test and how to assert."
 license: Apache-2.0
 metadata:
   author: "walterjave"

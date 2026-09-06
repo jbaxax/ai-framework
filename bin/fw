@@ -166,6 +166,7 @@ cmd_link() {
 
   head1 "Prompt hook (global, once per machine)"
   note "recognises \"elabora un plan para ...\" and names the flow before any step"
+  note "and names the installed skills whose triggers the prompt matches"
   local hook_script; hook_script="$(plan_hook_script)"
   if [ -f "$hook_script" ]; then
     ok "hook  $(basename "$hook_script")"
@@ -398,6 +399,14 @@ cmd_doctor() {
     ok "plan hook present: $(basename "$hook_script")"
   else
     bad "plan hook missing: $hook_script"
+  fi
+  # The hook shells out to the router on every prompt. A missing router is
+  # silent by construction — prompts keep working and skills simply stop being
+  # named, which is indistinguishable from no skill matching.
+  if [ -f "$FW_ROOT/hooks/skill-router.py" ]; then
+    ok "skill router present: skill-router.py"
+  else
+    bad "skill router missing: $FW_ROOT/hooks/skill-router.py"
   fi
   register_plan_hook check
 

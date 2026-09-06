@@ -1,6 +1,6 @@
 ---
 name: verification-standards
-description: "Trigger: verify, verification, verification report, validate implementation, prove a change, definition of done, evidence, test evidence, PASS WITH WARNINGS, archive readiness. This project's standard for what counts as proof that a change is complete."
+description: "Trigger: verify, verification, verification report, validate implementation, prove a change, definition of done, evidence, test evidence, PASS WITH WARNINGS, archive readiness, verificar, verificá, comprobar, comprobá, demostrar, evidencia, está bien, quedó bien, dar por cerrado, listo para cerrar. This project's standard for what counts as proof that a change is complete."
 license: Apache-2.0
 metadata:
   author: "walterjave"

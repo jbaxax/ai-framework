@@ -148,7 +148,8 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `machine/` | The two config files that define this setup, and why `CLAUDE.md` is not one of them |
 | `hooks/` | `plan-guard.sh` and its `plan-guard.cmd` Windows launcher — the prompt hook `fw link` registers — plus the registrar that installs it |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
-| `rules/` | Path-scoped rules, symlinked into `~/.claude/rules/` by `fw link`. They load themselves when a matching file is touched — the only channel with enforcement that does not depend on the agent remembering to ask |
+| `hooks/` | The `UserPromptSubmit` hook. It names the flow when a plan is requested, and names the installed skills whose declared triggers the prompt matches — the second push channel, and the one that stops skills from depending on the agent remembering to ask |
+| `rules/` | Path-scoped rules, symlinked into `~/.claude/rules/` by `fw link`. They load themselves when a matching file is touched — enforcement that does not depend on the agent remembering to ask |
 | `rules/conventions.md` | Every `.ts`, `.tsx`, `.html`, `.go` — the conventions that get broken from memory |
 | `rules/testing.md` | Spec and test files — the mode gate, the seam, the Evidence Gate |
 | `rules/auth.md` | Auth, login, session, guards, middleware — where a token may never live |

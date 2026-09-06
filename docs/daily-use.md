@@ -57,12 +57,37 @@ type nothing.
 | auth, login, session, `*.guard.ts`, `middleware.ts` | `auth` — where a token may never live |
 | a service, an interceptor, `api/`, `infrastructure/` | `api-client` — only `infrastructure/` imports the HTTP client |
 
+## Skills name themselves
+
+Rules load by path. Skills used to load only when someone remembered to open
+them, and across a full logged session that happened **zero times out of four
+while four skills were on topic**. A mandate obeyed none of the time is a
+comment, not a mandate.
+
+The prompt hook now reads every prompt, matches it against the `Trigger:` list
+each installed skill declares, and names the matches with the path to read:
+
+```
+| Skill | Matched on | Read |
+|---|---|---|
+| testing | "test" | ~/.claude/skills/testing/SKILL.md |
+| verification-standards | "evidencia" | ~/.claude/skills/verification-standards/SKILL.md |
+```
+
+It fires in Spanish and in English, tolerates accents and plurals, and stays
+silent when nothing matches — an ordinary edit request injects nothing. It names
+at most four, ranked by how many triggers each one matched, because an injection
+that appears on every prompt is scenery.
+
+Being named is not proof the skill applies. Open it and say in one line which
+one you used and which you ruled out.
+
 ## What still needs you to ask
 
-**The backlog.** Its moment is *"I just got blocked"*, and no file path or prompt
-pattern catches that. Say `fw backlog` or ask for the backlog skill by name. It
-is the one piece that depends on discipline, and pretending otherwise would be
-dishonest.
+**The backlog.** Its moment is *"I just got blocked"*. The router now catches the
+phrasings that name it — *"qué sigo"*, *"what should I work on"* — but the moment
+itself has no file path and no reliable phrase behind it, so `fw backlog` said
+out loud is still the reliable route.
 
 Record a blocked item with the date in any language — `(asked 2026-09-03)`,
 `(preguntado 2026-09-03)`, or a bare `2026-09-03`. Without a date the wait

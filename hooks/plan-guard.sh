@@ -6,6 +6,19 @@ set -uo pipefail
 
 payload="$(cat 2>/dev/null || true)"
 
+# Skills are the pull channel, and pull does not fire: three logged sessions,
+# four skills on topic in the last one, zero opened. Naming the matches here
+# turns the same rule into the push channel that already works for rules/.
+#
+# It runs before the plan block because it applies to every prompt, not only to
+# the ones asking for a plan. No python, no skills directory, or any defect in
+# the router means silence — never a lost prompt.
+router="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/skill-router.py"
+if [ -f "$router" ]; then
+  py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  [ -n "$py" ] && printf '%s' "$payload" | "$py" "$router" 2>/dev/null || true
+fi
+
 PLAN_REQUEST='(elabor|hac|haz|arm|cre|prepar)[^[:space:]]*[[:space:]]+(un[[:space:]]+)?plan([^a-zA-Z]|$)|make[[:space:]]+a[[:space:]]+plan([^a-zA-Z]|$)'
 
 printf '%s' "$payload" | grep -qiE "$PLAN_REQUEST" || exit 0

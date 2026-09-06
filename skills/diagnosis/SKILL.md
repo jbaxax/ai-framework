@@ -1,6 +1,6 @@
 ---
 name: diagnosis
-description: "Trigger: bug, broken, failing, throwing, crash, no funciona, se rompe, error, regression, slow, performance, debug, diagnose, why is this happening. Build a red-capable feedback loop before forming any theory about the cause."
+description: "Trigger: bug, broken, failing, throwing, crash, no funciona, se rompe, error, regression, slow, performance, debug, diagnose, why is this happening, falla, rompe, tira 403, tira 500, me da error, no anda, deja de andar, por que pasa esto. Build a red-capable feedback loop before forming any theory about the cause."
 license: Apache-2.0
 metadata:
   author: "walterjave"
