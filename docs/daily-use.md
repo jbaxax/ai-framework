@@ -82,6 +82,27 @@ that appears on every prompt is scenery.
 Being named is not proof the skill applies. Open it and say in one line which
 one you used and which you ruled out.
 
+## The pass over the running app
+
+The activity with the highest yield in three logged sessions, and the one the
+framework named nowhere until now. `fw pass` builds the list from the diff —
+which templates changed, which files have no test beside them, which routes or
+guards moved who can reach what. You do not write that half.
+
+```bash
+fw pass                                     # where to look, from the diff
+fw pass note "<what you saw>" --missed "<what should have caught it>"
+fw pass log                                 # what today produced
+```
+
+The second field is the one that compounds. Leave it out when nothing should
+have caught it: the entry then reads `nothing exists — framework gap`, which is
+the finding rather than a missing field.
+
+Written while looking, never reconstructed at the end of the day — what gets
+remembered is what was startling, never what was frequent. Detail in
+`foreign-systems.md`'s sibling, `manual-pass.md`.
+
 ## What still needs you to ask
 
 **The backlog.** Its moment is *"I just got blocked"*. The router now catches the

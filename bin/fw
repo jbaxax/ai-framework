@@ -691,6 +691,200 @@ cmd_evidence() {
   [ "$EV_FAILED" -eq 0 ] || exit 1
 }
 
+# ---------------------------------------------------------------------------
+# fw pass
+#
+# The manual pass over the running app produces the most expensive findings a
+# session gets — three of one day's four came from looking at the screen, not at
+# the code — and the framework named it nowhere. It had no list to work from and
+# no place to write what it found.
+#
+# Two halves, and only one of them is a person's job. The list comes from the
+# diff, mechanically. The finding is written the moment it is seen, with the
+# second field that makes it worth more than a bug report: which instrument
+# should have caught this. When that field is empty, the item is not a bug — it
+# is the framework's next piece of work.
+#
+# The retro is then assembled from the log instead of from memory at the end of
+# a ten-hour day, which is what loses the repetitions: what gets remembered is
+# what was startling, never what was frequent.
+# ---------------------------------------------------------------------------
+
+PASS_ROOT=".fw/pass"
+
+pass_base() {
+  # What to diff against, cheapest true answer first: the upstream branch is
+  # what "already reviewed" means when there is one.
+  git rev-parse --abbrev-ref '@{u}' 2>/dev/null && return 0
+  git rev-parse --verify -q main >/dev/null 2>&1 && { printf 'main'; return 0; }
+  git rev-parse --verify -q master >/dev/null 2>&1 && { printf 'master'; return 0; }
+  printf 'HEAD'
+}
+
+pass_changed() {
+  local base="$1"
+  { git diff --name-only "$base"...HEAD 2>/dev/null
+    git diff --name-only 2>/dev/null
+    git ls-files --others --exclude-standard 2>/dev/null
+  } | sed '/^$/d' | sort -u
+}
+
+# A file whose test sits beside it is already watched by something. One without
+# is a file where the only check left is a person.
+pass_has_test() {
+  local f="$1" base dir
+  base="$(basename "$f")"; base="${base%.*}"
+  dir="$(dirname "$f")"
+  compgen -G "$dir/$base.test.*" >/dev/null 2>&1 && return 0
+  compgen -G "$dir/$base.spec.*" >/dev/null 2>&1 && return 0
+  compgen -G "$dir/__tests__/$base.*" >/dev/null 2>&1 && return 0
+  return 1
+}
+
+pass_log_file() {
+  printf '%s/%s.md' "$PASS_ROOT" "$(date +%F)"
+}
+
+pass_note() {
+  local text="" missed=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --missed) shift; missed="${1:-}" ;;
+      -*) bad "unknown flag: $1"; exit 2 ;;
+      *) text="${text:+$text }$1" ;;
+    esac
+    shift
+  done
+  if [ -z "$text" ]; then
+    bad "nothing to record"
+    note "fw pass note \"the toggle in Emission Docs is not gated\" --missed \"audit.py: blind to p-toggleswitch\""
+    exit 2
+  fi
+
+  mkdir -p "$PASS_ROOT"
+  local f; f="$(pass_log_file)"
+  if [ ! -f "$f" ]; then
+    printf '# Manual pass — %s\n\n' "$(date +%F)" > "$f"
+    printf 'Written while looking at the app, not reconstructed afterwards.\n' >> "$f"
+    printf 'The second line of each entry is what the retro is built from.\n\n' >> "$f"
+  fi
+  {
+    printf -- '- %s · `%s`\n' "$(date +%H:%M)" "$(git rev-parse --short HEAD 2>/dev/null || echo 'no commit')"
+    printf -- '  **Seen:** %s\n' "$text"
+    if [ -n "$missed" ]; then
+      printf -- '  **Should have caught it:** %s\n\n' "$missed"
+    else
+      printf -- '  **Should have caught it:** nothing exists — framework gap\n\n'
+    fi
+  } >> "$f"
+
+  ok "recorded in $f"
+  if [ -z "$missed" ]; then
+    warn "no instrument named"
+    note "that is not a gap in the note, it is the finding: nothing was watching this."
+    note "it goes to the backlog as framework work, not as a bug."
+  fi
+}
+
+pass_log() {
+  local f; f="$(pass_log_file)"
+  if [ "${1:-}" = "--all" ]; then
+    head1 "Every pass recorded in $PASS_ROOT"
+    local any=0 l
+    for l in "$PASS_ROOT"/*.md; do
+      [ -f "$l" ] || continue
+      any=1
+      printf '\n'; cat "$l"
+    done
+    [ "$any" = 1 ] || warn "nothing recorded yet"
+    return
+  fi
+  if [ ! -f "$f" ]; then
+    warn "nothing recorded today"
+    note "fw pass note \"<what you saw>\" --missed \"<what should have caught it>\""
+    return
+  fi
+  cat "$f"
+}
+
+cmd_pass() {
+  case "${1:-}" in
+    note) shift; pass_note "$@"; return ;;
+    log)  shift; pass_log "$@"; return ;;
+    "" ) ;;
+    -*) ;;
+    *) bad "unknown subcommand: $1"; exit 2 ;;
+  esac
+
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    bad "not a git repository — the list comes from the diff"
+    exit 1
+  fi
+
+  local base; base="$(pass_base)"
+  head1 "Manual pass in $(pwd)"
+  ok "comparing against $base"
+
+  local files; files="$(pass_changed "$base")"
+  if [ -z "$files" ]; then
+    warn "nothing changed — there is no pass to make"
+    return
+  fi
+
+  local n; n="$(printf '%s\n' "$files" | wc -l | tr -d ' ')"
+  ok "$n file(s) changed"
+
+  # Grouped by feature, because a screen is a feature and files are not.
+  head1 "Where to look"
+  printf '%s\n' "$files" | sed -n 's|^\(.*features/[^/]*\)/.*|\1|p' | sort | uniq -c \
+    | while read -r count dir; do note "$count file(s)  $dir"; done
+  local outside
+  outside="$(printf '%s\n' "$files" | grep -v 'features/' || true)"
+  [ -n "$outside" ] && printf '%s\n' "$outside" | while read -r f; do note "          $f"; done
+
+  # A template is where a person is the only remaining check: no unit test sees
+  # a layout, an empty state, or a control that renders but does nothing.
+  head1 "Only a person can check these"
+  local templates
+  templates="$(printf '%s\n' "$files" | grep -E '\.(html|vue|svelte)$' || true)"
+  if [ -n "$templates" ]; then
+    printf '%s\n' "$templates" | while read -r f; do warn "$f"; done
+  else
+    note "no templates changed"
+  fi
+
+  head1 "Changed with no colocated test"
+  local untested=0 f
+  while IFS= read -r f; do
+    case "$f" in *.test.*|*.spec.*|*.d.ts) continue ;; esac
+    case "$f" in *.ts|*.tsx|*.js|*.jsx) ;; *) continue ;; esac
+    [ -f "$f" ] || continue
+    pass_has_test "$f" && continue
+    warn "$f"
+    untested=$((untested + 1))
+  done <<EOF_FILES
+$files
+EOF_FILES
+  [ "$untested" -eq 0 ] && note "every changed source file has a test beside it"
+
+  # A changed route, menu or guard moves who can reach what, and that is exactly
+  # the claim a file cannot answer on its own.
+  head1 "Entry points touched"
+  local entries
+  entries="$(printf '%s\n' "$files" | grep -E '(routes?|menu|guard|nav|sidebar)' || true)"
+  if [ -n "$entries" ]; then
+    printf '%s\n' "$entries" | while read -r f; do bad "$f"; done
+    note "who reaches what may have moved — skills/gating resolves it before you judge a control"
+  else
+    note "no route, menu or guard changed"
+  fi
+
+  head1 "While you look"
+  note "fw pass note \"<what you saw>\" --missed \"<what should have caught it>\""
+  note "the second field is the one the retro is built from. Empty means nothing"
+  note "was watching it, which is a framework item and not a bug."
+}
+
 BACKLOG_FILE="${FW_BACKLOG:-$HOME/backlog.md}"
 STALE_DAYS="${FW_STALE_DAYS:-3}"
 
@@ -1544,6 +1738,7 @@ BLOCKED_LINES=()
 
 case "${1:-}" in
   backlog)  shift; cmd_backlog "$@" ;;
+  pass)     shift; cmd_pass "$@" ;;
   link)     shift; cmd_link "$@" ;;
   install)  shift; cmd_install "$@" ;;
   doctor)   shift; cmd_doctor "$@" ;;
@@ -1587,6 +1782,12 @@ fw — install this framework into a project
     epic <slug> [t]    start an epic
     hu <slug> [t]      add a story to it, appending its row to the epic table
     list               what exists and where each story stands (default)
+  fw pass              the manual pass over the running app: what changed, which
+                       screens it lands on, what only a person can check
+    note "<text>"      record a finding while looking at it
+      --missed "<x>"   which instrument should have caught it. Empty means none
+                       existed, which makes it framework work rather than a bug
+    log [--all]        today's findings, or every day recorded
   fw backlog           what is ready to start, and how long each blocked item
                        has been waiting on an answer
                        FW_BACKLOG=<file>   default ~/backlog.md
