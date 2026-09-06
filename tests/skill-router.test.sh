@@ -129,6 +129,10 @@ check "and so does naming a subagent" "$(real 'delegá esto a un subagente')" "|
 check "a gating finding routes to gating" "$(real 'este control no tiene gate')" "| gating |"
 check "and so does asking who opens a screen" "$(real 'quién abre este modal')" "| gating |"
 check "in English too" "$(real 'who opens this modal')" "| gating |"
+check "splitting commits routes to work-units" "$(real 'partí esto en commits')" "| work-units |"
+# Spanish conjugates borrowed English verbs, and word boundaries mean `commit`
+# never reaches `commiteá`. The forms actually typed are triggers of their own.
+check "and so does the conjugated form" "$(real 'commiteá esto')" "| work-units |"
 empty "and an ordinary edit request stays silent" "$(real 'agregá un botón de guardar en el modal')"
 
 printf '\n%s passed, %s failed\n\n' "$PASS" "$FAIL"
