@@ -75,6 +75,10 @@ check "an accented prompt matches an unaccented trigger" "$out" "| alpha |"
 d2=$(mktemp -d); skill "$d2" gamma "qué sigo"
 out=$(route "$d2" 'que sigo ahora')
 check "and an unaccented prompt matches an accented trigger" "$out" "| gamma |"
+# Folding is for matching only. Echoing the folded phrase back tells a Spanish
+# reader their own trigger lost its accents.
+check "the phrase is reported as it was written" "$out" '"qué sigo"'
+refute "not as the folded form used to match it" "$out" '"que sigo"'
 
 # --- ranking and the cap ----------------------------------------------------
 d3=$(mktemp -d)

@@ -70,9 +70,13 @@ def triggers_of(description):
         body = body[: end.start()]
     phrases = []
     for raw in body.split(","):
-        phrase = fold(raw.strip().strip("'\"").rstrip("."))
-        if len(phrase) >= MIN_PHRASE:
-            phrases.append(phrase)
+        shown = raw.strip().strip("'\"").rstrip(".")
+        folded = fold(shown)
+        # Both forms are kept: the folded one is what matching needs, the
+        # original is what gets printed. Reporting the folded phrase back tells
+        # a Spanish reader their trigger lost its accents.
+        if len(folded) >= MIN_PHRASE:
+            phrases.append((folded, shown))
     return phrases
 
 
@@ -125,7 +129,8 @@ def main():
 
     hits = []
     for name, path in skill_files(root):
-        found = [p for p in triggers_of(description_of(path)) if matches(prompt, p)]
+        found = [shown for folded, shown in triggers_of(description_of(path))
+                 if matches(prompt, folded)]
         if found:
             hits.append((len(found), name, found, path))
 
