@@ -631,6 +631,31 @@ cmd_evidence() {
   if pkg_script test; then run_check "tests" "$rt run test"
   else ev_missing "tests" "no test script in package.json"; fi
 
+  # An audit script decides which controls get reviewed at all, so a blind spot
+  # in it is worth more than a blind spot in any single test — and it is the one
+  # instrument nothing was testing.
+  #
+  # What runs here is the audit's SUITE, never the audit itself. An audit with
+  # open findings is a project with work left, not a broken run; making evidence
+  # fail on it would train everyone to delete the row. Its suite answers the
+  # only question this table can ask: does the instrument still detect what it
+  # claims to detect?
+  local audit_dir=""
+  for path in .fw/audit audit; do
+    [ -d "$path" ] || continue
+    audit_dir="$path"
+    break
+  done
+  if [ -n "$audit_dir" ]; then
+    if [ -x "$audit_dir/tests/run.sh" ]; then
+      run_check "audit" "./$audit_dir/tests/run.sh"
+    elif [ -f "$audit_dir/tests/run.sh" ]; then
+      ev_missing "audit" "$audit_dir/tests/run.sh is not executable"
+    else
+      ev_missing "audit" "$audit_dir/ has no tests/run.sh"
+    fi
+  fi
+
   local contracts_ran=0
   for path in .fw/contracts/verify.ts contracts/verify.ts; do
     [ -f "$path" ] || continue
@@ -1464,7 +1489,8 @@ fw — install this framework into a project
     --personal         force normal install
     --dry-run          show the plan, write nothing
   fw doctor            verify the install and that nothing personal leaks into git
-  fw evidence          run typecheck, lint, build, tests and contracts; print a
+  fw evidence          run typecheck, lint, build, tests, the audit suite and
+                       contracts; print a
                        pasteable evidence table. A check the project does not
                        have is a NOT RUN row, never a silent omission, and the
                        verdict drops to PASS WITH WARNINGS. Exits non-zero if

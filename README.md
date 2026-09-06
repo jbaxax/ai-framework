@@ -165,6 +165,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `docs/conventions.md` | Naming and code rules for both stacks |
 | `docs/stack-defaults.md` | The stack, and why each default was chosen |
 | `docs/foreign-systems.md` | How to measure a backend you do not deploy without writing a row, and why reading its source is not evidence |
+| `docs/audit-tools.md` | Where a repo's own audit scripts live, why their suite is not optional, and the rule that a new blind spot ships with its case |
 | `skills/grilling/` | Interrogating a plan round by round until nothing is silently assumed |
 | `skills/requirements/` | Turning a chat message or user story into testable criteria |
 | `skills/epic/` | The boundary and standing decisions that span several slices |

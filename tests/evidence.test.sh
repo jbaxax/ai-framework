@@ -116,6 +116,69 @@ out=$(run "$d" --no-build)
 check "a skipped build is named in the table" "$out" "**NOT RUN** — skipped by --no-build"
 check "and lowers the verdict" "$out" "**Verdict: PASS WITH WARNINGS**"
 
+# --- the audit suite runs, and it is the suite, not the audit ---------------
+# An audit script decides which controls get reviewed at all. Running the audit
+# itself here would fail every project with open findings; running its suite
+# answers the only question this table can ask.
+d=$(fixture); scripts "$d" typecheck lint build test
+for s in typecheck lint build; do script "$d" 'echo ok' "$s"; done
+script "$d" "$green" test
+mkdir -p "$d/.fw/audit/tests"
+printf '#!/bin/sh
+echo "3 audit case(s) passed"
+exit 0
+' > "$d/.fw/audit/tests/run.sh"
+chmod +x "$d/.fw/audit/tests/run.sh"
+printf 'print("HALLAZGOS: 12")
+' > "$d/.fw/audit/audit.py"
+out=$(run "$d")
+check "the audit suite is a row of its own" "$out" "| audit | \`./.fw/audit/tests/run.sh\`"
+check "and a passing suite keeps the verdict" "$out" "**Verdict: PASS**"
+
+# --- an audit with no suite is the gap the retro named ----------------------
+d=$(fixture); scripts "$d" typecheck lint build test
+for s in typecheck lint build; do script "$d" 'echo ok' "$s"; done
+script "$d" "$green" test
+mkdir -p "$d/.fw/audit"; printf 'print("HALLAZGOS: 12")
+' > "$d/.fw/audit/audit.py"
+out=$(run "$d")
+check "an audit tool with no tests is reported" "$out" "**NOT RUN** — .fw/audit/ has no tests/run.sh"
+check "and lowers the verdict" "$out" "**Verdict: PASS WITH WARNINGS**"
+
+# --- a suite that is present but cannot run says which ----------------------
+# "no tests" and "tests that are not executable" send you to different places.
+d=$(fixture); scripts "$d" typecheck lint build test
+for s in typecheck lint build; do script "$d" 'echo ok' "$s"; done
+script "$d" "$green" test
+mkdir -p "$d/.fw/audit/tests"; printf '#!/bin/sh
+exit 0
+' > "$d/.fw/audit/tests/run.sh"
+out=$(run "$d")
+check "a non-executable suite is named as such" "$out" "is not executable"
+refute "and not confused with having none" "$out" "has no tests/run.sh"
+
+# --- a project with no audit tools is not nagged ----------------------------
+d=$(fixture); scripts "$d" typecheck lint build test
+for s in typecheck lint build; do script "$d" 'echo ok' "$s"; done
+script "$d" "$green" test
+out=$(run "$d")
+refute "a project with no audit directory gets no audit row" "$out" "| audit |"
+check "and stays PASS" "$out" "**Verdict: PASS**"
+
+# --- a failing audit suite fails the run ------------------------------------
+d=$(fixture); scripts "$d" typecheck lint build test
+for s in typecheck lint build; do script "$d" 'echo ok' "$s"; done
+script "$d" "$green" test
+mkdir -p "$d/audit/tests"
+printf '#!/bin/sh
+echo "case 2 failed: dynamic [disabled] was filtered"
+exit 1
+' > "$d/audit/tests/run.sh"
+chmod +x "$d/audit/tests/run.sh"
+out=$(run "$d")
+check "a shared audit/ directory is found too" "$out" "./audit/tests/run.sh"
+check "and a broken instrument fails the run" "$out" "**Verdict: FAIL**"
+
 # --- a real failure outranks the gaps ---------------------------------------
 d=$(fixture); scripts "$d" typecheck test
 script "$d" 'echo "src/a.ts(1,1): error TS2322: nope"; exit 2' typecheck

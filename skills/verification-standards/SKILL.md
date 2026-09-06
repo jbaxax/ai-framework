@@ -65,6 +65,13 @@ standard than the tool's floor.
   environment enables it. A claim about another system's behavior is
   `UNVERIFIED` until a request was sent and its response recorded. See
   `../../rules/foreign-source.md` and `../../docs/foreign-systems.md`.
+- **An audit script has no net unless someone builds it one.** A test proves
+  one behaviour; an audit decides which behaviours are looked at at all, so its
+  blind spot produces silence rather than a failure, and silence reads as a
+  clean project. Repo-owned audit tools live in `.fw/audit/` or `audit/` with an
+  executable `tests/run.sh`, `fw evidence` runs that suite as the `audit` row,
+  and a new blind spot ships with the case that would have caught it. See
+  `../../docs/audit-tools.md`.
 - **A probe needs a positive control.** A run where nothing blocked is
   indistinguishable from a wrong host, an expired token, or a server that is
   down. Include one endpoint known to block and read its row first; if the
@@ -122,6 +129,7 @@ tells you which one you have.
 | Test run reports unhandled errors, whatever its exit code | `FAIL` — the run did not do what its pass count claims |
 | Criterion asserts another system's behavior, read from its source, never probed | `FAIL` — `UNVERIFIED`, the source is a hypothesis |
 | Probe table reports nothing blocked, with no positive control in it | `FAIL` — `UNVERIFIED`, the instrument is unverified |
+| Verdict rests on a repo-owned audit script whose `audit` row is `NOT RUN` | `PASS WITH WARNINGS` at best — the instrument has nothing testing it |
 | Project has no linter and the report does not say so | `FAIL` — `UNVERIFIED`, the table claims a check it never made |
 | Criterion claimed covered by a pre-existing test, mutant on that file survived | `FAIL` — `UNVERIFIED` |
 | Verdict rests on an improvised check that was never observed failing | `FAIL` — `UNVERIFIED`, the instrument is unverified |
