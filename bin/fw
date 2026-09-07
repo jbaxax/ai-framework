@@ -39,8 +39,19 @@ link_or_warn() {
   fi
 }
 
+# `command -v` is not enough on Windows: App Execution Aliases put a python3
+# stub on PATH that prints "install from the Microsoft Store" and exits 49. It
+# resolves, so the old lookup returned it and every hook registration failed
+# with doctor telling you to run the command that had just failed. A candidate
+# only counts if it actually runs Python.
 python_bin() {
-  command -v python3 2>/dev/null || command -v python 2>/dev/null || true
+  local c p
+  for c in python3 python py; do
+    p="$(command -v "$c" 2>/dev/null)" || continue
+    [ -n "$p" ] || continue
+    "$p" -c '' >/dev/null 2>&1 || continue
+    printf '%s' "$p"; return
+  done
 }
 
 is_windows() {

@@ -15,7 +15,16 @@ payload="$(cat 2>/dev/null || true)"
 # the router means silence — never a lost prompt.
 router="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/skill-router.py"
 if [ -f "$router" ]; then
-  py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  # A resolved python3 is not necessarily Python: Windows App Execution Aliases
+  # ship a stub that exits 49 without running anything. Only a candidate that
+  # executes counts.
+  py=""
+  for c in python3 python py; do
+    cand="$(command -v "$c" 2>/dev/null)" || continue
+    [ -n "$cand" ] || continue
+    "$cand" -c '' >/dev/null 2>&1 || continue
+    py="$cand"; break
+  done
   [ -n "$py" ] && printf '%s' "$payload" | "$py" "$router" 2>/dev/null || true
 fi
 

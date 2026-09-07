@@ -9,7 +9,14 @@ FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # FW_ROUTER points the suite at a deliberately broken copy, which is how this
 # suite is proved able to go red before its green is believed.
 ROUTER="${FW_ROUTER:-$FW_ROOT/hooks/skill-router.py}"
-PY="$(command -v python3 || command -v python)"
+# A resolved python3 can be the Windows Store stub, which exits 49 without
+# running anything. Picking it made all 32 cases fail on the stub's message
+# instead of on the router's behaviour.
+PY=""
+for _c in python3 python py; do
+  _p="$(command -v "$_c" 2>/dev/null)" || continue
+  [ -n "$_p" ] && "$_p" -c '' >/dev/null 2>&1 && { PY="$_p"; break; }
+done
 
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  \033[32m✓\033[0m %s\n' "$1"; }
