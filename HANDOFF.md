@@ -31,6 +31,8 @@ cause — **nothing in the framework said who executes a check.**
 | `hooks/pass-guard.sh` | The `Stop` hook. Names what changed that no check can see, once per new state, through `systemMessage`. `fw pass` was a pull channel until now |
 | `fw pass --porcelain` | `kind<TAB>path` for the hook. One classifier, so the hook and the printed list cannot drift apart |
 | `register-hook.py --event` | The registrar takes an event name, so `fw link` installs both hooks instead of only `UserPromptSubmit` |
+| `bin/agy-bridge.py` | The agy ↔ engram bridge, checked by `fw doctor` and installed by `fw link`. agy reads this project's memory and cannot write to it |
+| `skills/delegation` *Who you hand it to* | Four lanes with four prices. `graphify` first at zero tokens, `agy` on Google's quota, a Claude subagent on yours, inline last |
 
 `skills/diagnosis/` Phase 1 now points at it: the loop is built *and run* by the
 agent, and asking for a `curl` it could reach is how ten minutes becomes a
@@ -46,6 +48,31 @@ fw pass log --all
 
 **Run `fw link` on the work machine.** The `Stop` hook is a new entry in
 `settings.json`; without it the turn ends exactly as before and nothing says so.
+
+The same `fw link` installs the agy bridge when `agy` is on PATH. Two things it
+works around, both measured here: `agy` leaves `mcp_config.json` at **zero
+bytes**, which makes `engram setup antigravity-cli` die with `unexpected end of
+JSON input`; and in headless mode agy auto-denies MCP tools unless
+`permissions.allow` carries `mcp(engram/*)` — `mcp` and `mcp(engram__*)` are
+both rejected, `mcp(*)` works but covers every server ever added.
+
+**agy reads nothing by default, and that is deliberate.** `fw link` wires the
+memory lane only. Reading files needs `--add-dir "$PWD"` with absolute paths —
+agy does not inherit the shell's directory — plus `command(*)` in
+`permissions.allow`, which is arbitrary shell. `command(cat *)` is rejected, so
+there is no narrow version, and an installer does not make that call for you:
+`fw doctor` names it as a choice and never grants it.
+
+**What it does when it cannot read** is the argument for every rule in
+`skills/delegation`. Asked *"what is this project"* with no file access, it
+searched the shared memory, found the `novels` notes, and answered fluently and
+confidently about the wrong repository. Nothing marked it as a guess.
+
+**Never give agy a writable engram.** `engram setup` installs `--tools=agent`,
+which carries `mem_save`, and its own protocol *recommends* `topic_key` — the
+upsert that replaces an observation in place with no record of what it
+replaced. Measured on this machine: 15 observations overwritten, 50 previous
+versions gone, including personal profile entries.
 
 ## What changed on 2026-09-06
 

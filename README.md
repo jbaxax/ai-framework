@@ -146,6 +146,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 |---|---|
 | `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence`, `backlog`, `mutate`, `product`. **CRLF line endings** — a programmatic edit with LF patterns matches nothing and fails silently |
 | `machine/` | The two config files that define this setup, and why `CLAUDE.md` is not one of them |
+| `bin/agy-bridge.py` | Checks and installs the agy ↔ engram bridge: engram registered read-only, MCP allowed in headless mode, the read-only protocol in `GEMINI.md`. `fw doctor` reads it, `fw link` repairs it |
 | `hooks/` | `plan-guard.sh` (prompt) and `pass-guard.sh` (stop), each with a `.cmd` Windows launcher, plus the registrar `fw link` uses to install both |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `hooks/` | The `UserPromptSubmit` hook. It names the flow when a plan is requested, and names the installed skills whose declared triggers the prompt matches — the second push channel, and the one that stops skills from depending on the agent remembering to ask |

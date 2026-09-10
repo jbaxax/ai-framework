@@ -43,6 +43,59 @@ level further out: **a subagent's report is a hypothesis wearing the clothes of 
 finding.** It arrives with confidence, a structure, and no way to tell a measured
 claim from a plausible one.
 
+## Who you hand it to
+
+The table above decides *whether*. This one decides *where*, and the prices are
+not close. **Ask the cheapest lane that can actually answer the question** — not
+the most capable one that could.
+
+| Lane | Costs | Answers | Cannot answer |
+|---|---|---|---|
+| `graphify` | **nothing** — tree-sitter, no model | Structure: what calls what, what breaks if X changes, what is load-bearing | What the code *does*. It is a map, not an explanation |
+| `agy` | Google's quota, not yours | Meaning over bulk text: what a module does, whether a backend document matches the code, whether a pattern holds across forty files | Anything it must be trusted on — it is a cold agent, so the rules above still apply in full |
+| A Claude subagent | **your** quota, and a cold start | Work that must write code or use these same tools | — |
+| Inline | your quota, no cold start | Everything the verification table calls expensive | — |
+
+**Reach for `graphify` first and it is not close.** Measured on a 2,874-file
+codebase: 13 seconds, **zero tokens**, and more accurate than grep. A question it
+can answer that goes to a model instead is money spent for a worse answer. See
+`../diagnosis/` under *Narrowing a codebase you did not write*.
+
+### Calling `agy`
+
+It is a command, not a second terminal for the person to drive. Copying a prompt
+by hand is not a lane, it is a chore that will stop happening by Thursday:
+
+```bash
+agy -p "<the question>" --model gemini-3.8-flash-medium
+agy -p "<the question>" --output-format json     # adds status and a token count
+agy -p "<the question>" --add-dir "$PWD"         # required to read files at all
+```
+
+**`--add-dir` and absolute paths, or it reads nothing.** agy does not inherit the
+shell's directory: without it, `head -3 README.md` returns *no such file*. And
+reading files at all needs `command(*)` in `permissions.allow`, which is
+arbitrary shell — `command(cat *)` is rejected, so there is no narrow version.
+`fw link` never grants it; `fw doctor` names it as a choice.
+
+**What it does when it cannot read** is the reason the rules above are not
+optional. Asked *"what is this project"* without file access, it searched the
+shared memory, found another project's notes, and answered — fluently,
+confidently, and about the wrong repository. Nothing in the answer marked it as
+a guess. That is *A cold agent over-asserts*, live, and it is why every claim
+comes back with a `file:line` and two of them get spot-checked.
+
+It shares this project's memory **read-only** — `mem_search`, `mem_context`,
+`mem_get_observation` — so it starts knowing why the project is the way it is
+without being told. It has no `mem_save`: one writer is what keeps a shared
+store worth reading. `fw doctor` reports the bridge; `fw link` installs it.
+
+**What decides whether it pays**: the brief is written on your quota and the
+answer lands back in your context. So it pays when the material is much larger
+than the answer — forty files in, twenty lines out — and it loses when the brief
+has to describe the whole design. That is the same rule as the rest of this
+file, priced in a second currency.
+
 ## A cold agent over-asserts
 
 An agent that starts with no context justifies its existence with a big finding.
