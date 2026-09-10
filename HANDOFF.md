@@ -9,6 +9,7 @@ lot in one day and none of it is reachable until the machine is linked.
 cd <this repo> && git pull
 fw doctor          # lists exactly what is missing
 fw link            # only if doctor asked for it
+/model opusplan    # personal preference, does not travel with git — see below
 ```
 
 `fw doctor` is silent when everything is fine. It is not a ritual — pulling
@@ -17,6 +18,13 @@ points at the file in this repo. What it cannot do is create links for things
 that did not exist before, and this day added four.
 
 If `fw` itself does not run, the file is CRLF again — see the note at the end.
+
+**`/model opusplan` lives in `~/.claude/settings.json`, outside this repo.**
+`git pull` never sets it — it has to be typed once per machine. It makes Opus
+plan the work (`shift+tab` twice opens plan mode) and Sonnet implement the
+accepted plan, in the same session, automatically: `/model` alone shows the
+current model but never lists `opusplan` as a choice unless it is already
+active, so it has to be typed with the argument, not picked from the menu.
 
 ## What changed on 2026-09-09
 
