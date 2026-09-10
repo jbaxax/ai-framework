@@ -28,10 +28,24 @@ cause — **nothing in the framework said who executes a check.**
 | Now exists | What it does |
 |---|---|
 | `rules/execution.md` | A check you can run, you run. The table of what is genuinely worth a round trip to the person, and the three-sentence shape of the ask when it is |
+| `hooks/pass-guard.sh` | The `Stop` hook. Names what changed that no check can see, once per new state, through `systemMessage`. `fw pass` was a pull channel until now |
+| `fw pass --porcelain` | `kind<TAB>path` for the hook. One classifier, so the hook and the printed list cannot drift apart |
+| `register-hook.py --event` | The registrar takes an event name, so `fw link` installs both hooks instead of only `UserPromptSubmit` |
 
 `skills/diagnosis/` Phase 1 now points at it: the loop is built *and run* by the
 agent, and asking for a `curl` it could reach is how ten minutes becomes a
 morning.
+
+`fw pass note` was already the manual sanity log — it landed on 09-06 and was
+easy to miss, which was exactly the problem. It is now pushed at you:
+
+```bash
+fw pass note "<what you saw>" --missed "<what should have caught it>"
+fw pass log --all
+```
+
+**Run `fw link` on the work machine.** The `Stop` hook is a new entry in
+`settings.json`; without it the turn ends exactly as before and nothing says so.
 
 ## What changed on 2026-09-06
 

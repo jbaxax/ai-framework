@@ -63,54 +63,58 @@ is_windows() {
 # MSYS /c/Users path, or a bare .sh, is silently unrunnable there. It points at
 # the repository and not a symlink under $HOME because on Windows `ln -s`
 # degrades to a copy, and a copied guard goes stale the moment a rule changes.
-plan_hook_command() {
-  if is_windows; then
-    local win="$FW_ROOT/hooks/plan-guard.cmd"
-    cygpath -m "$win" 2>/dev/null || printf '%s' "$win"
-  else
-    printf '%s' "$FW_ROOT/hooks/plan-guard.sh"
-  fi
+hook_script() {
+  if is_windows; then printf '%s' "$FW_ROOT/hooks/$1.cmd"
+  else printf '%s' "$FW_ROOT/hooks/$1.sh"; fi
 }
 
-plan_hook_script() {
-  if is_windows; then printf '%s' "$FW_ROOT/hooks/plan-guard.cmd"
-  else printf '%s' "$FW_ROOT/hooks/plan-guard.sh"; fi
+hook_command() {
+  local path; path="$(hook_script "$1")"
+  if is_windows; then cygpath -m "$path" 2>/dev/null || printf '%s' "$path"
+  else printf '%s' "$path"; fi
 }
 
-register_plan_hook() {
-  local mode="${1:-install}"
+plan_hook_command() { hook_command plan-guard; }
+plan_hook_script()  { hook_script  plan-guard; }
+
+# register_hook <mode> <label> <event> <basename>
+register_hook() {
+  local mode="$1" label="$2" event="$3" base="$4"
   local settings="$CLAUDE_HOME/settings.json"
-  local hook; hook="$(plan_hook_command)"
+  local hook; hook="$(hook_command "$base")"
   local py; py="$(python_bin)"
 
   if [ -z "$py" ]; then
-    bad "plan hook: no python on PATH, cannot read or write $settings"
-    note "register it by hand under .hooks.UserPromptSubmit:"
+    bad "$label hook: no python on PATH, cannot read or write $settings"
+    note "register it by hand under .hooks.$event:"
     note "  { \"hooks\": [ { \"type\": \"command\", \"command\": \"$hook\" } ] }"
     return
   fi
 
   if [ "$mode" = check ]; then
-    if "$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" --check >/dev/null 2>&1; then
-      ok "plan hook registered in settings.json"
+    if "$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" --check --event "$event" >/dev/null 2>&1; then
+      ok "$label hook registered in settings.json"
     else
-      bad "plan hook NOT registered in settings.json — run 'fw link'"
+      bad "$label hook NOT registered in settings.json — run 'fw link'"
     fi
     return
   fi
 
   local result rc=0
-  result="$("$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" 2>&1)" || rc=$?
+  result="$("$py" "$FW_ROOT/hooks/register-hook.py" "$settings" "$hook" --event "$event" 2>&1)" || rc=$?
   if [ "$rc" -ne 0 ]; then
-    bad "plan hook: could not register — $result"
+    bad "$label hook: could not register — $result"
     return
   fi
-  ok "plan hook $result in settings.json"
+  ok "$label hook $result in settings.json"
   if [ "$result" = added ]; then
     note "settings.json changed — refresh the snapshot so doctor stays quiet:"
     note "  cp \"$settings\" \"$FW_ROOT/machine/claude-settings.json\""
   fi
 }
+
+register_plan_hook() { register_hook "${1:-install}" plan UserPromptSubmit plan-guard; }
+register_pass_hook() { register_hook "${1:-install}" pass Stop            pass-guard; }
 
 has_dep() {
   [ -f package.json ] || return 1
@@ -185,6 +189,17 @@ cmd_link() {
     bad "hook  $(basename "$hook_script") missing from $FW_ROOT/hooks"
   fi
   register_plan_hook install
+
+  head1 "Stop hook (global, once per machine)"
+  note "names what changed that no check can see, so the manual pass stops"
+  note "depending on anyone remembering it"
+  local pass_script; pass_script="$(hook_script pass-guard)"
+  if [ -f "$pass_script" ]; then
+    ok "hook  $(basename "$pass_script")"
+  else
+    bad "hook  $(basename "$pass_script") missing from $FW_ROOT/hooks"
+  fi
+  register_pass_hook install
 
   link_skills_into "$CLAUDE_HOME" "claude"
 
@@ -420,6 +435,17 @@ cmd_doctor() {
     bad "skill router missing: $FW_ROOT/hooks/skill-router.py"
   fi
   register_plan_hook check
+
+  # The Stop hook is the only push channel the manual pass has. Missing, it is
+  # silent by construction: the turn ends exactly as it did before, so a pass
+  # that never happened looks like a pass that was not needed.
+  local pass_script; pass_script="$(hook_script pass-guard)"
+  if [ -f "$pass_script" ]; then
+    ok "pass hook present: $(basename "$pass_script")"
+  else
+    bad "pass hook missing: $pass_script"
+  fi
+  register_pass_hook check
 
   count_linked_skills() {
     local home="$1" n=0
@@ -1126,6 +1152,38 @@ pass_log_file() {
   printf '%s/%s.md' "$PASS_ROOT" "$(date +%F)"
 }
 
+# The three reasons a changed file needs a person, as one machine-readable list:
+# `kind<TAB>path`. `fw pass` prints it and the Stop hook fingerprints it. Two
+# implementations of "what needs looking at" would drift, and the half that
+# drifted would be the one nobody was reading.
+pass_person_checkable() {
+  local base="$1" files f
+  files="$(pass_changed "$base")"
+  [ -n "$files" ] || return 0
+
+  printf '%s\n' "$files" | grep -E '\.(html|vue|svelte)$' | sed 's/^/template\t/' || true
+
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$f" in *.test.*|*.spec.*|*.d.ts) continue ;; esac
+    case "$f" in *.ts|*.tsx|*.js|*.jsx) ;; *) continue ;; esac
+    [ -f "$f" ] || continue
+    pass_has_test "$f" && continue
+    printf 'untested\t%s\n' "$f"
+  done <<EOF_CLASSIFY
+$files
+EOF_CLASSIFY
+
+  printf '%s\n' "$files" | grep -E '(routes?|menu|guard|nav|sidebar)' | sed 's/^/entry\t/' || true
+}
+
+# Machine-readable, for the Stop hook. Silent and exit 0 when nothing needs a
+# person: a hook that speaks on every turn is a hook that gets ignored.
+pass_porcelain() {
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  pass_person_checkable "$(pass_base)"
+}
+
 pass_note() {
   local text="" missed=""
   while [ $# -gt 0 ]; do
@@ -1192,6 +1250,7 @@ cmd_pass() {
   case "${1:-}" in
     note) shift; pass_note "$@"; return ;;
     log)  shift; pass_log "$@"; return ;;
+    --porcelain) pass_porcelain; return ;;
     "" ) ;;
     -*) ;;
     *) bad "unknown subcommand: $1"; exit 2 ;;
@@ -1223,11 +1282,14 @@ cmd_pass() {
   outside="$(printf '%s\n' "$files" | grep -v 'features/' || true)"
   [ -n "$outside" ] && printf '%s\n' "$outside" | while read -r f; do note "          $f"; done
 
+  local checkable
+  checkable="$(pass_person_checkable "$base")"
+  kind_of() { printf '%s\n' "$checkable" | sed -n "s/^$1\t//p"; }
+
   # A template is where a person is the only remaining check: no unit test sees
   # a layout, an empty state, or a control that renders but does nothing.
   head1 "Only a person can check these"
-  local templates
-  templates="$(printf '%s\n' "$files" | grep -E '\.(html|vue|svelte)$' || true)"
+  local templates; templates="$(kind_of template)"
   if [ -n "$templates" ]; then
     printf '%s\n' "$templates" | while read -r f; do warn "$f"; done
   else
@@ -1235,24 +1297,17 @@ cmd_pass() {
   fi
 
   head1 "Changed with no colocated test"
-  local untested=0 f
-  while IFS= read -r f; do
-    case "$f" in *.test.*|*.spec.*|*.d.ts) continue ;; esac
-    case "$f" in *.ts|*.tsx|*.js|*.jsx) ;; *) continue ;; esac
-    [ -f "$f" ] || continue
-    pass_has_test "$f" && continue
-    warn "$f"
-    untested=$((untested + 1))
-  done <<EOF_FILES
-$files
-EOF_FILES
-  [ "$untested" -eq 0 ] && note "every changed source file has a test beside it"
+  local untested; untested="$(kind_of untested)"
+  if [ -n "$untested" ]; then
+    printf '%s\n' "$untested" | while read -r f; do warn "$f"; done
+  else
+    note "every changed source file has a test beside it"
+  fi
 
   # A changed route, menu or guard moves who can reach what, and that is exactly
   # the claim a file cannot answer on its own.
   head1 "Entry points touched"
-  local entries
-  entries="$(printf '%s\n' "$files" | grep -E '(routes?|menu|guard|nav|sidebar)' || true)"
+  local entries; entries="$(kind_of entry)"
   if [ -n "$entries" ]; then
     printf '%s\n' "$entries" | while read -r f; do bad "$f"; done
     note "who reaches what may have moved — skills/gating resolves it before you judge a control"

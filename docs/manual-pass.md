@@ -64,6 +64,44 @@ Each section is a different reason to look, not a longer list:
   moved with it. That is the claim a single file can never answer;
   `../skills/gating/SKILL.md` resolves it.
 
+## You do not have to remember it
+
+`fw pass` was a pull channel for its first three days: it produced the right
+list and fired only when someone thought to ask for it, which is the failure it
+was built to fix wearing different clothes.
+
+`hooks/pass-guard.sh` runs on `Stop` — the end of every turn. It asks
+`fw pass --porcelain` what changed that no check can see, and when the answer is
+not empty it reaches the person through `systemMessage`:
+
+```
+Stop says: fw — 2 file(s) changed that no check can see for you (none recorded today).
+  ! src/app/features/cobros/presentation/collection-list.html  only a person can check this
+  ! src/app/app.routes.ts   changed with no colocated test; entry point — who reaches what may have moved
+
+  fw pass                                    the full list, grouped by feature
+  fw pass note "<what you saw>" --missed "<what should have caught it>"
+```
+
+Two properties are what make it survivable:
+
+- **It speaks only on new information.** The set of files is fingerprinted into
+  `.fw/pass/.notified`, and an unchanged set says nothing. A hook that repeats
+  itself every turn is read once and skipped forever — the same silence, reached
+  more expensively.
+- **It counts files, not reasons.** One file can need a person for two reasons
+  at once. A count that does not match the list under it is not trusted a second
+  time, so the reasons are joined onto the file's own line.
+
+`additionalContext` does **not** reach the model on a normal stop: the turn is
+over, so there is no call left to inject into. `systemMessage` does reach the
+person. That asymmetry is the whole design — the pass is the person's job, and
+what was missing was never the doing, it was the remembering.
+
+`fw doctor` reports the hook when it is present but unregistered. Missing, it is
+silent by construction: the turn ends exactly as it did before, so a pass that
+never happened looks like a pass that was not needed.
+
 ## A finding has two halves too
 
 ```bash

@@ -146,9 +146,10 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 |---|---|
 | `bin/fw` | Installer and verifier — `link`, `install`, `doctor`, `evidence`, `backlog`, `mutate`, `product`. **CRLF line endings** — a programmatic edit with LF patterns matches nothing and fails silently |
 | `machine/` | The two config files that define this setup, and why `CLAUDE.md` is not one of them |
-| `hooks/` | `plan-guard.sh` and its `plan-guard.cmd` Windows launcher — the prompt hook `fw link` registers — plus the registrar that installs it |
+| `hooks/` | `plan-guard.sh` (prompt) and `pass-guard.sh` (stop), each with a `.cmd` Windows launcher, plus the registrar `fw link` uses to install both |
 | `CLAUDE.md` | The rules Claude reads. Loaded every session |
 | `hooks/` | The `UserPromptSubmit` hook. It names the flow when a plan is requested, and names the installed skills whose declared triggers the prompt matches — the second push channel, and the one that stops skills from depending on the agent remembering to ask |
+| `hooks/pass-guard.sh` | The `Stop` hook. When the turn ends it names what changed that no check can see, once per new state — the push channel for the manual pass, which until now depended on someone remembering it |
 | `rules/` | Path-scoped rules, symlinked into `~/.claude/rules/` by `fw link`. They load themselves when a matching file is touched — enforcement that does not depend on the agent remembering to ask |
 | `rules/conventions.md` | Every `.ts`, `.tsx`, `.html`, `.go` — the conventions that get broken from memory |
 | `rules/testing.md` | Spec and test files — the mode gate, the seam, the Evidence Gate |
