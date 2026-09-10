@@ -1,4 +1,4 @@
-# Handoff — 2026-09-06
+# Handoff — 2026-09-09
 
 For the next session, on any machine. Written because the framework changed a
 lot in one day and none of it is reachable until the machine is linked.
@@ -17,6 +17,21 @@ points at the file in this repo. What it cannot do is create links for things
 that did not exist before, and this day added four.
 
 If `fw` itself does not run, the file is CRLF again — see the note at the end.
+
+## What changed on 2026-09-09
+
+One rule, from a field observation: over a morning of debugging a backend known
+to ship stale docs and null ids, the agent handed the person `curl` after `curl`
+it could have run itself. Grepping `rules/`, `skills/` and `docs/` found the
+cause — **nothing in the framework said who executes a check.**
+
+| Now exists | What it does |
+|---|---|
+| `rules/execution.md` | A check you can run, you run. The table of what is genuinely worth a round trip to the person, and the three-sentence shape of the ask when it is |
+
+`skills/diagnosis/` Phase 1 now points at it: the loop is built *and run* by the
+agent, and asking for a `curl` it could reach is how ten minutes becomes a
+morning.
 
 ## What changed on 2026-09-06
 
@@ -64,6 +79,14 @@ gap`, which is the finding: nothing was watching that class of thing.
 3. **How long `fw evidence` takes on facnet.** The Angular project in this repo
    is a scaffold and its 2s does not transfer. That number sets the boundary
    between the cheap check a `Stop` hook can run every turn and the full one.
+4. **Model routing is user config, not framework.** Verified against the
+   installed binary `2.1.267`: `opusplan` exists as a `/model` value — Opus in
+   plan mode, Sonnet outside it — and `CLAUDE_CODE_SUBAGENT_MODEL` exists to pin
+   every subagent. The 18 agents in `~/.claude/agents/` already route per phase
+   (`sdd-propose`/`sdd-design` opus, `sdd-apply` and the reviewers sonnet,
+   `sdd-archive` haiku). Open question: does `fw doctor` start reporting a flat
+   `"model": "opus"` in `settings.json` as a finding, or does that stay a
+   per-machine choice the framework never touches?
 
 ## Known, measured, not yet built
 

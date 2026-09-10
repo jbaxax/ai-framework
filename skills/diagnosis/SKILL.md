@@ -58,6 +58,12 @@ can be removed in one file when they fix it.
 
 Spend disproportionate effort here. Be stubborn.
 
+**You build the loop and you run it.** Every instrument below is reachable
+from the terminal this session already has. `../../rules/execution.md` decides
+what is genuinely worth a round trip to the person and what is a `curl` that
+should already have been run — asking for the second one is how a ten-minute
+diagnosis costs a morning.
+
 Ways to build one, roughly cheapest first:
 
 1. **A failing test** at whatever seam reaches the bug.

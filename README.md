@@ -157,6 +157,7 @@ Then ask for a feature. Claude follows the rules instead of guessing.
 | `rules/angular.md` | Angular sources and `angular.json` |
 | `rules/backend.md` | NestJS controllers, modules, resolvers, `prisma/` — a backend **you deploy** |
 | `rules/foreign-source.md` | Controllers, guards, decorators, OpenAPI, `.proto` — reading a service you only consume, where the source is a hypothesis and the running instance is the evidence |
+| `rules/execution.md` | Every source file — a check you can run, you run. What genuinely needs the person, and how to ask so one round trip settles it |
 | `tests/` | `mutate.test.sh` and `backlog.test.sh` — run them with `bash tests/*.test.sh` |
 | `HANDOFF.md` | What changed in the last session, what to run on a machine that has not caught up, and what is waiting on a decision |
 | `docs/setup.md` | How to install the framework in a project |
