@@ -74,6 +74,96 @@ upsert that replaces an observation in place with no record of what it
 replaced. Measured on this machine: 15 observations overwritten, 50 previous
 versions gone, including personal profile entries.
 
+## Try it tomorrow, in this order
+
+Each step says what a working install prints. A step that prints something else
+is the finding — write it down with `fw pass note` rather than working around it.
+
+### 1. Install what is new
+
+```bash
+cd <this repo> && git pull
+fw doctor          # expect: rule not linked: fw-execution.md
+                   #         pass hook NOT registered in settings.json
+fw link
+fw doctor          # expect: silence
+```
+
+Both of those failures are the point: `fw doctor` reporting them is the check
+that a rule or hook added since the last link never loads. On Windows the hooks
+resolve to `plan-guard.cmd` and `pass-guard.cmd`, which hand off to Git Bash — if
+`fw` itself will not run, see the CRLF note at the end.
+
+### 2. The Stop hook, which is the one you cannot ask for
+
+Change a template and an untested source file in a real project, then end a
+turn. The turn itself should end with:
+
+```
+Stop says: fw — 2 file(s) changed that no check can see for you (none recorded today).
+  ! src/.../some.component.html     only a person can check this
+  ! src/.../useThing.ts             changed with no colocated test
+```
+
+End a second turn without changing anything else: **it must say nothing.** That
+silence is the feature — the file set is fingerprinted in `.fw/pass/.notified`
+and an unchanged set does not speak. A hook that repeats every turn gets read
+once and skipped forever.
+
+Then record something you actually saw:
+
+```bash
+fw pass note "<what you saw>" --missed "<what should have caught it>"
+fw pass log
+```
+
+`--missed` empty is not a missing field. It records `nothing exists — framework
+gap`, which is the finding.
+
+### 3. The execution rule
+
+`rules/execution.md` loads on any source file. The way to know it took is
+behavioural, so ask for something that used to come back as a request:
+
+> *"Is the backend up, and what does `GET /whatever/1` actually return?"*
+
+A working install **runs the request and shows you the output.** If it asks you
+to paste a `curl` instead, the rule did not load — check `fw doctor` first, and
+if it is clean, that is a real finding about the rule's wording.
+
+The three-sentence shape is what a legitimate ask looks like: what it tried and
+what came back, the exact command ready to paste, and which hypothesis your
+answer kills. Anything shorter than that is a punt.
+
+### 4. The agy bridge, only if `agy` is on that machine
+
+```bash
+fw doctor          # expect three agy lines, plus one note about the file lane
+agy -p "¿Qué decidimos en este proyecto sobre quién ejecuta las comprobaciones?" \
+    --model gemini-3.8-flash-low
+```
+
+It should answer from the shared memory without being given a single file.
+Then confirm the direction holds:
+
+```bash
+agy -p "Guardá en engram una observación de prueba. Si no tenés mem_save, decilo."
+```
+
+It must say it has no `mem_save`. If it saves, the bridge is wired wrong — stop
+and re-run `fw link`, because a second writer into a store whose `topic_key`
+replaces in place is how the 50 lost versions happened.
+
+**Do not expect it to read files.** That lane is off on purpose: it needs
+`--add-dir "$PWD"` with absolute paths *and* `command(*)`, which is arbitrary
+shell. `fw doctor` names it as your choice and never grants it.
+
+### 5. Before calling anything done
+
+```bash
+fw evidence        # paste the table, never a summary of it
+```
+
 ## What changed on 2026-09-06
 
 Eleven observations from the field retros of 09-04 and 09-05, all closed.
