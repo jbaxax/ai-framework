@@ -39,13 +39,21 @@ without `command(*)`, which `fw link` deliberately never grants.
 | `fw ask "<question>" [paths...]` | Packs files with the shell and asks agy, on Google's quota. `command(*)` is never needed — the shell reads the files, not `--add-dir` |
 | `skills/delegation` *Calling `agy`* | Rewritten around `fw ask`, with today's measured numbers instead of assertions |
 | `rules/execution.md`, new section | The sibling of "a check you can run, you run": a question the cheap lane can answer goes to the cheap lane |
-| `tests/ask.test.sh` | 18 checks, `agy` stubbed — never spends real quota to prove the wrapper |
+| `tests/ask.test.sh` | 25 checks, `agy` stubbed — never spends real quota to prove the wrapper |
 
 **Measured, not assumed**: 27 `SKILL.md` files (104 KB) packed into one question
 cost **40,158 input tokens on Google's side**; about 120 characters came back
 into context here. That gap is the entire reason the lane is worth having.
 
 Commits: `4d1a951` (the command), `838d8e3` (the rule).
+
+**Fixed same day**: `-p "<prompt>"` shares the kernel's combined argv+environ
+budget with whatever the caller's shell has already exported — a 132 KB payload,
+a third of the ceiling above, crashed with `OSError: Argument list too long`.
+The fix is mechanical, not a bigger number: `agy --input-format text` now reads
+the prompt over stdin, where no such ceiling exists. Commit `d3b0fb2`. This also
+means it was never a Linux-only bug — Windows's own command-line limit is
+smaller than Linux's, so the old code would have failed there sooner.
 
 **`fw ask` can only ask, on purpose.** It calls agy in print mode, nothing else
 — no `--mode accept-edits`, no file writes. Whether agy should also *build*
@@ -290,10 +298,35 @@ logout) worked. ~109k tokens on Google's side, under 3 minutes.
 The gap: partway through, it tried to run a shell command to self-check its own
 work, which the bridge denies (`command(*)` again), and the run ended one file
 short with no explanation in the response text — just a `denied_actions` entry
-in the JSON that nothing surfaces unless someone reads it. A real agy-as-builder
-lane needs a wrapper that catches that denial and resumes with "no shell," the
-way this was done by hand. Not built — needs its own decision, since it costs
-agy's quota for something bigger than a read.
+in the JSON that nothing surfaces unless someone reads it. Resumed the same
+conversation by hand, telling it not to use shell — it finished clean.
+
+**Decided: `command(*)` stays off.** It has no narrow form — it is arbitrary
+shell, the same grant reading files would have needed, and this is the same
+agent already measured hallucinating fluently about the wrong project when it
+lacked context. What the permission would buy — agy testing its own work — is
+worth less than it sounds: a cold agent grading its own homework is the same
+over-assertion risk as any other unverified claim from it, not a fix for it.
+The resume-without-shell pattern above already gets it to finish; an
+independent check (curl, `fw evidence`, a human) still has to verify the
+result, exactly as for any subagent's output. Revisit only if agy ever ships a
+narrower permission than blanket shell.
+
+**agy is not framework-aware by default.** The auth demo ran with `--add-dir`
+pointed at a throwaway sandbox, never the real project, so it never saw
+`GEMINI.md` or `skills/` — even though `fw link` does symlink skills into
+`~/.gemini/skills/`, whether agy actually reads and follows them when pointed
+at a real project is untested. **The reliable path today is not ambient
+discovery, it is writing the rule directly into the prompt** — the auth demo's
+prompt spelled out "backend sets the cookie, frontend only ever sends
+`credentials: include`" in plain text, and agy followed it on the first pass
+without ever touching a rules file. If a plan hands agy a build step, put the
+relevant rule in the prompt itself rather than assuming it will find it.
+
+**In one line**: agy answers questions on its own quota and can write files
+when pointed at a directory with `--mode accept-edits`. It cannot run any
+shell command, cannot write memory, does not test itself, and does not know
+this framework's rules unless a prompt states them.
 
 ## If `fw` stops working on Linux
 
