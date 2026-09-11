@@ -83,6 +83,31 @@ moves the fault into our mapper."*
 Then keep going on everything that does not depend on the answer. A question is
 not a reason to stop working — it is a reason to stop working *on that branch*.
 
+## The same question, one level in
+
+The rule above is about the person. This is the same question aimed at
+yourself: **a question the cheap lane can answer goes to the cheap lane.**
+Reading twelve files into context to answer one question spends the allowance
+the rest of the session needs — measured, not assumed: `skills/delegation`
+priced graphify at zero tokens and `fw ask` (agy, on Google's quota) at 40,158
+input tokens for 104 KB of files, with about 120 characters landing back here.
+Both are cheaper than reading the same material inline, and neither is free —
+each answers a narrower class of question than "read the code."
+
+| About to do | Do this instead |
+|---|---|
+| Read a dozen files to learn a module's shape | `graphify` — structure, zero tokens, seconds |
+| Read a pile of text to answer one question about what it means or says | `fw ask "<question>" <paths>` — Google's quota, a short answer back |
+| Read one or two files you already need to edit | Just read them. Packing a brief for one file costs more than reading it |
+| Answer a question only the whole design in your head can answer | Inline. The brief would have to restate everything the cheap lane lacks |
+
+**What genuinely needs the expensive lane**: anything you must be able to trust
+without a spot-check — code you are about to write, a claim that gates a
+decision, a security-relevant read. `graphify` gives structure, not meaning;
+`fw ask` is a cold agent that over-asserts when its brief runs out of material,
+per `skills/delegation`. Its answers arrive with `file:line` for exactly that
+reason — check two of them, the way any subagent's report gets checked.
+
 ## Why this needs writing down
 
 Asking is safe. Running the command produces a result you can be measured
