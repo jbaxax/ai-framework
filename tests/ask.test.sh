@@ -23,18 +23,17 @@ ko() { FAIL=$((FAIL+1)); printf '  \033[31m✗\033[0m %s\n' "$1"; }
 check()  { if printf '%s' "$2" | grep -qF -- "$3"; then ok "$1"; else ko "$1"; printf '      expected to find: %s\n' "$3"; fi; }
 refute() { if printf '%s' "$2" | grep -qF -- "$3"; then ko "$1"; printf '      should NOT contain: %s\n' "$3"; else ok "$1"; fi; }
 
-# A stub, never the real thing. It records the exact -p payload it received
-# (so a test can inspect what was packed) and a call marker (so a test can
-# prove agy was never reached at all), then answers with whatever status the
-# test asks for.
+# A stub, never the real thing. It records the exact argv it was called with
+# (so a test can prove the prompt is never one of them — argv has an OS ceiling
+# that moves with the caller's own environment, which is the bug this file
+# guards against) and the full stdin it received (the prompt travels there
+# instead), plus a call marker, then answers with whatever status the test asks
+# for.
 STUB_DIR="$(mktemp -d)"
 cat > "$STUB_DIR/agy" <<'STUB'
 #!/usr/bin/env bash
-prev=""
-for a in "$@"; do
-  if [ "$prev" = "-p" ]; then printf '%s' "$a" > "${AGY_CAPTURE:-/dev/null}"; fi
-  prev="$a"
-done
+printf '%s\n' "$@" > "${AGY_ARGV:-/dev/null}"
+cat > "${AGY_CAPTURE:-/dev/null}"
 : >> "${AGY_CALLS:-/dev/null}"
 printf '{"status":"%s","response":"stub answer","usage":{"total_tokens":123},"duration_seconds":1.2}\n' \
   "${AGY_STATUS:-SUCCESS}"
@@ -43,10 +42,11 @@ chmod +x "$STUB_DIR/agy"
 
 CAPTURE="$(mktemp)"
 CALLS="$(mktemp)"
+ARGV="$(mktemp)"
 
 ask() {
-  : > "$CAPTURE"; : > "$CALLS"
-  AGY_CAPTURE="$CAPTURE" AGY_CALLS="$CALLS" AGY_STATUS="${AGY_STATUS:-SUCCESS}" \
+  : > "$CAPTURE"; : > "$CALLS"; : > "$ARGV"
+  AGY_CAPTURE="$CAPTURE" AGY_CALLS="$CALLS" AGY_ARGV="$ARGV" AGY_STATUS="${AGY_STATUS:-SUCCESS}" \
     PATH="$STUB_DIR:$PATH" "$FW_BIN" ask "$@" 2>&1
 }
 ask_rc() { ask "$@" >/dev/null 2>&1; printf '%s' $?; }
@@ -68,6 +68,29 @@ check "the source file's content reached agy" "$prompt" "export const total = 1"
 refute "node_modules is excluded"     "$prompt" "node_modules"
 refute "the lockfile is excluded"     "$prompt" "package-lock.json"
 refute "the binary file is excluded"  "$prompt" "logo.bin"
+
+printf '\nfw ask — the prompt travels over stdin, never argv\n'
+
+# `-p "<huge string>"` shares the kernel's argv+environ budget with whatever
+# the caller's own shell has already exported. A payload comfortably under our
+# own 1 MB ceiling still blew that up in the wild once the environment was
+# large enough — an OSError this script never even gets to report cleanly.
+# Only a mechanism change fixes it: nothing this large may ever appear in argv.
+argv="$(cat "$ARGV")"
+refute "the prompt is not passed as -p"      "$argv" "-p"
+refute "the prompt is not passed as --print" "$argv" "--print"
+check "the prompt is requested over stdin instead" "$argv" "--input-format"
+
+BULK="$(mktemp -d)"
+for i in 1 2 3 4 5 6 7 8; do
+  head -c 30000 /dev/zero | tr '\0' 'x' > "$BULK/file$i.txt"
+done
+out="$(ask "summarize this" "$BULK")"
+check "a payload well past the old real-world failure size still packs" "$out" "packed  8 files"
+refute "and produces no interpreter traceback" "$out" "Traceback"
+refute "and never an OS argument-list error"   "$out" "Argument list too long"
+[ "$(ask_rc "summarize this" "$BULK")" = 0 ] \
+  && ok "and the call still succeeds" || ko "and the call still succeeds"
 
 printf '\nfw ask — the ceiling\n'
 

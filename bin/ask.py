@@ -140,9 +140,14 @@ def main():
 
     prompt = BRIEF.format(question=args.question) + packed
     try:
+        # The prompt goes over stdin, never as an argv element. `-p "<prompt>"`
+        # is bounded by the kernel's combined argv+environ budget, which is not
+        # the packed payload's size alone — a shell carrying enough exported
+        # variables can blow that budget on a payload under this file's own 1 MB
+        # ceiling, and the failure is an opaque OSError, not this script's.
         proc = subprocess.run(
-            ["agy", "-p", prompt, "--model", args.model, "--output-format", "json"],
-            capture_output=True, text=True,
+            ["agy", "--input-format", "text", "--output-format", "json", "--model", args.model],
+            input=prompt, capture_output=True, text=True,
         )
     except FileNotFoundError:
         print("  ask: agy not found on PATH", file=sys.stderr)
