@@ -63,38 +63,46 @@ can answer that goes to a model instead is money spent for a worse answer. See
 
 ### Calling `agy`
 
-It is a command, not a second terminal for the person to drive. Copying a prompt
-by hand is not a lane, it is a chore that will stop happening by Thursday:
+`fw ask "<question>" [paths...]` — not `agy -p` typed by hand. That used to be
+the documented way in, and it was dead the moment it shipped: `agy --add-dir
+"$PWD"` cannot read a file unless `permissions.allow` carries `command(*)`,
+which is arbitrary shell, and `fw link` deliberately never grants it. A lane
+whose only entry point does not work on the machine that installed it is not a
+lane, it is a paragraph.
 
 ```bash
-agy -p "<the question>" --model gemini-3.8-flash-medium
-agy -p "<the question>" --output-format json     # adds status and a token count
-agy -p "<the question>" --add-dir "$PWD"         # required to read files at all
+fw ask "<question>" src/features/diet          # paths default to .
+fw ask "<question>" src/ --model gemini-3.8-flash-medium
+fw ask "<question>" src/ --dry-run             # show what would be packed, call nothing
 ```
 
-**`--add-dir` and absolute paths, or it reads nothing.** agy does not inherit the
-shell's directory: without it, `head -3 README.md` returns *no such file*. And
-reading files at all needs `command(*)` in `permissions.allow`, which is
-arbitrary shell — `command(cat *)` is rejected, so there is no narrow version.
-`fw link` never grants it; `fw doctor` names it as a choice.
+**The mechanism**: the shell reads the files — `fw ask` packs them itself,
+never `agy --add-dir` — so `command(*)` is never needed and none of it touches
+this session's context. Measured against this repository: 27 `SKILL.md` files,
+104 KB, packed and sent as one question. **40,158 input tokens landed on
+Google's quota**; about 120 characters came back into context here. That gap is
+the entire reason this lane exists — bulk in on their side, a short answer on
+ours — and until today it was priced by assertion, not by a number.
 
-**What it does when it cannot read** is the reason the rules above are not
-optional. Asked *"what is this project"* without file access, it searched the
-shared memory, found another project's notes, and answered — fluently,
-confidently, and about the wrong repository. Nothing in the answer marked it as
-a guess. That is *A cold agent over-asserts*, live, and it is why every claim
-comes back with a `file:line` and two of them get spot-checked.
+**What it does when it cannot read** is why the brief `fw ask` sends is not
+optional decoration. Asked *"what is this project"* without file access, agy
+searched the shared memory, found another project's notes, and answered —
+fluently, confidently, and about the wrong repository. Nothing in the answer
+marked it as a guess. That is *A cold agent over-asserts*, live, and it is why
+`fw ask` demands `file:line` on every claim and the literal word `UNKNOWN` when
+the packed text does not say — and why two claims still get spot-checked after
+that.
 
 It shares this project's memory **read-only** — `mem_search`, `mem_context`,
 `mem_get_observation` — so it starts knowing why the project is the way it is
 without being told. It has no `mem_save`: one writer is what keeps a shared
 store worth reading. `fw doctor` reports the bridge; `fw link` installs it.
 
-**What decides whether it pays**: the brief is written on your quota and the
-answer lands back in your context. So it pays when the material is much larger
-than the answer — forty files in, twenty lines out — and it loses when the brief
-has to describe the whole design. That is the same rule as the rest of this
-file, priced in a second currency.
+**What decides whether it pays**: the brief is written on Google's quota and the
+answer lands back in yours. So it pays when the material is much larger than
+the answer — forty files in, twenty lines out — and it loses when the question
+needs the whole design explained first. That is the same rule as the rest of
+this file, priced in a second currency.
 
 ## A cold agent over-asserts
 

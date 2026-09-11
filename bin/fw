@@ -2191,6 +2191,24 @@ prod_list() {
   [ "$orphan" -eq 0 ] || return 1
 }
 
+cmd_ask() {
+  if [ $# -eq 0 ]; then
+    bad "ask: usage: fw ask \"<question>\" [paths...] [--model <m>] [--dry-run]"
+    exit 2
+  fi
+  if ! command -v agy >/dev/null 2>&1; then
+    bad "ask: agy not found on PATH"
+    note "install it, or answer this yourself — see skills/delegation"
+    exit 1
+  fi
+  local py; py="$(python_bin)"
+  if [ -z "$py" ]; then
+    bad "ask: no python on PATH, cannot pack files or read agy's answer"
+    exit 1
+  fi
+  "$py" "$FW_ROOT/bin/ask.py" "$@"
+}
+
 cmd_product() {
   case "${1:-list}" in
     init) shift; prod_init "$@" ;;
@@ -2214,6 +2232,7 @@ case "${1:-}" in
   evidence) shift; cmd_evidence "$@" ;;
   mutate)   shift; cmd_mutate "$@" ;;
   product)  shift; cmd_product "$@" ;;
+  ask)      shift; cmd_ask "$@" ;;
   *)
     cat <<EOF
 fw — install this framework into a project
@@ -2271,6 +2290,14 @@ fw — install this framework into a project
                        has been waiting on an answer
                        FW_BACKLOG=<file>   default ~/backlog.md
                        FW_STALE_DAYS=<n>   default 3
+  fw ask "<q>" [paths] ask agy (Google's quota) a question about the given
+                       files or directories, default the current one. The
+                       shell reads the files, not this session's context —
+                       bulk text goes in on agy's quota, a short answer comes
+                       back on yours. Every claim it returns should carry a
+                       file:line; spot-check a couple before trusting it
+    --model <m>        default gemini-3.8-flash-medium
+    --dry-run          show what would be packed and its size, call nothing
 
 Framework root: $FW_ROOT
 EOF
