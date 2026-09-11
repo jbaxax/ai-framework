@@ -1,4 +1,4 @@
-# Handoff — 2026-09-09
+# Handoff — 2026-09-10
 
 For the next session, on any machine. Written because the framework changed a
 lot in one day and none of it is reachable until the machine is linked.
@@ -25,6 +25,32 @@ plan the work (`shift+tab` twice opens plan mode) and Sonnet implement the
 accepted plan, in the same session, automatically: `/model` alone shows the
 current model but never lists `opusplan` as a choice unless it is already
 active, so it has to be typed with the argument, not picked from the menu.
+
+## What changed on 2026-09-10
+
+`agy` was installed the day before, documented, and never used once. The reason
+was in the skill's own text: *"copying a prompt by hand is not a lane, it is a
+chore that will stop happening by Thursday."* It shipped exactly that — the only
+documented way to hand agy a file, `agy --add-dir "$PWD"`, cannot read anything
+without `command(*)`, which `fw link` deliberately never grants.
+
+| Now exists | What it does |
+|---|---|
+| `fw ask "<question>" [paths...]` | Packs files with the shell and asks agy, on Google's quota. `command(*)` is never needed — the shell reads the files, not `--add-dir` |
+| `skills/delegation` *Calling `agy`* | Rewritten around `fw ask`, with today's measured numbers instead of assertions |
+| `rules/execution.md`, new section | The sibling of "a check you can run, you run": a question the cheap lane can answer goes to the cheap lane |
+| `tests/ask.test.sh` | 18 checks, `agy` stubbed — never spends real quota to prove the wrapper |
+
+**Measured, not assumed**: 27 `SKILL.md` files (104 KB) packed into one question
+cost **40,158 input tokens on Google's side**; about 120 characters came back
+into context here. That gap is the entire reason the lane is worth having.
+
+Commits: `4d1a951` (the command), `838d8e3` (the rule).
+
+**`fw ask` can only ask, on purpose.** It calls agy in print mode, nothing else
+— no `--mode accept-edits`, no file writes. Whether agy should also *build*
+code is a separate, bigger decision — see *Known, measured, not yet built*
+below for what a throwaway test found.
 
 ## What changed on 2026-09-09
 
@@ -166,7 +192,25 @@ replaces in place is how the 50 lost versions happened.
 `--add-dir "$PWD"` with absolute paths *and* `command(*)`, which is arbitrary
 shell. `fw doctor` names it as your choice and never grants it.
 
-### 5. Before calling anything done
+### 5. `fw ask`, only if `agy` is on that machine
+
+```bash
+fw ask "which skills mention graphify, with file:line" skills/
+```
+
+A working install prints, in order: a `packed  N files · size` line, an
+`agy     <model> · N tok (Google) · Ns` line naming the real cost, then the
+answer with `file:line` on every claim. Spot-check one against `grep` — this
+exact question returned 4-for-4 the day it was built.
+
+```bash
+fw ask "<anything>" some/dir --dry-run    # packs, reports the size, calls nothing
+```
+
+`--dry-run` must never touch the network. If `agy` is not on PATH, `fw ask`
+refuses with a one-line message naming that — not a stack trace.
+
+### 6. Before calling anything done
 
 ```bash
 fw evidence        # paste the table, never a summary of it
@@ -235,6 +279,21 @@ normal stop — the conversation ends, so there is no call to inject into.
 `systemMessage` **does** reach the user, rendered as `Stop says: …`. So the hook
 can report the verification to the person even when it cannot report it to the
 agent. Design and remaining questions are in `~/backlog.md`.
+
+**agy can build, not just answer** — `--mode accept-edits` writes files without
+`--dangerously-skip-permissions`. Tried on a throwaway 3-file cookie-auth demo
+(backend sets an `HttpOnly` cookie, frontend only ever sends
+`credentials: 'include'`, never touches `document.cookie`): it got the
+separation right on the first pass, and the live curl flow (login → session →
+logout) worked. ~109k tokens on Google's side, under 3 minutes.
+
+The gap: partway through, it tried to run a shell command to self-check its own
+work, which the bridge denies (`command(*)` again), and the run ended one file
+short with no explanation in the response text — just a `denied_actions` entry
+in the JSON that nothing surfaces unless someone reads it. A real agy-as-builder
+lane needs a wrapper that catches that denial and resumes with "no shell," the
+way this was done by hand. Not built — needs its own decision, since it costs
+agy's quota for something bigger than a read.
 
 ## If `fw` stops working on Linux
 
